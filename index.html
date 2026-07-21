@@ -69,7 +69,7 @@
                     <span id="grand-total" class="text-blue-600">Rs. 0.00</span>
                 </div>
                 <button onclick="checkoutAndPrint()" class="w-full mt-4 bg-orange-500 text-white py-3 rounded-xl font-bold shadow hover:bg-orange-600">
-                    🖨️ Checkout & Print Bill
+                    🧾 Checkout & Print Preview
                 </button>
             </div>
         </div>
@@ -107,6 +107,26 @@
 
     </div>
 
+    <!-- PRINT PREVIEW MODAL -->
+    <div id="preview-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
+            <h3 class="font-bold text-lg text-gray-800 border-b pb-2 text-center">🧾 Print Preview</h3>
+            
+            <!-- Receipt Print Area -->
+            <div class="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-lg font-mono text-xs whitespace-pre-wrap leading-relaxed text-gray-800 max-h-80 overflow-y-auto" id="preview-content">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="closePreview()" class="flex-1 bg-gray-300 text-gray-800 py-2.5 rounded-xl font-bold hover:bg-gray-400">
+                    අවලංගුයි (Cancel)
+                </button>
+                <button onclick="confirmAndPrint()" class="flex-1 bg-orange-500 text-white py-2.5 rounded-xl font-bold shadow hover:bg-orange-600">
+                    🖨️ Print කරන්න
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Logic -->
     <script>
         // --- SUPABASE SERVER SETUP ---
@@ -124,10 +144,12 @@
         let printCharacteristic = null;
         let html5QrCode = null;
 
+        let pendingReceiptText = "";
+        let pendingSaleData = null;
+
         async function syncWithServer() {
             if (!db) return;
             try {
-                // Fetch Products from Server
                 const { data: serverProducts } = await db.from('products').select('*');
                 if (serverProducts && serverProducts.length > 0) {
                     products = serverProducts;
@@ -146,7 +168,6 @@
             renderInventory();
             renderReports();
 
-            // Cloud Server Sync (Optional)
             if (db) {
                 try {
                     await db.from('products').upsert(products);
@@ -187,7 +208,7 @@
 
         async function printText(text) {
             if (!printCharacteristic) {
-                alert("Bluetooth Printer එකක් Connect කර නොමැත.");
+                alert("Bluetooth Printer එකක් Connect කර නොමැත. (බිල්පත System එකේ Save විය)");
                 return false;
             }
             const encoder = new TextEncoder();
@@ -211,7 +232,6 @@
         function initCamera() {
             html5QrCode = new Html5Qrcode("reader");
             
-            // Back Camera එක කෙලින්ම Open කිරීම
             html5QrCode.start(
                 { facingMode: "environment" },
                 {
@@ -227,14 +247,11 @@
                         alert('මෙම Barcode එකට අදාළ භාණ්ඩයක් Stock එකේ නැත: ' + decodedText);
                     }
                     
-                    // Scan වුණු පසු කැමරාව Close කිරීම
                     html5QrCode.stop().then(() => {
                         document.getElementById('reader').classList.add('hidden');
                     });
                 },
-                (errorMessage) => {
-                    // Scanning errors ignore
-                }
+                (errorMessage) => {}
             ).catch(err => {
                 alert("කැමරාව Open කිරීමට නොහැකි විය: " + err);
             });
@@ -378,7 +395,8 @@
             renderCart();
         }
 
-        async function checkoutAndPrint() {
+        // --- Print Preview & Checkout Logic ---
+        function checkoutAndPrint() {
             if(cart.length === 0) {
                 alert('බිල්පත හිස්ය!');
                 return;
@@ -386,41 +404,55 @@
 
             let total = 0;
             let receiptText = "=== SMART SHOP POS ===\n";
-            receiptText += "Date: " + new Date().toLocaleDateString() + "\n";
+            receiptText += "Date: " + new Date().toLocaleString() + "\n";
             receiptText += "------------------------------\n";
 
             cart.forEach(item => {
                 const itemTotal = item.price * item.qty;
                 total += itemTotal;
                 receiptText += `${item.name} x ${item.qty} = Rs.${itemTotal}\n`;
-
-                const prod = products.find(p => p.id === item.id);
-                if(prod) prod.stock -= item.qty;
             });
 
             receiptText += "------------------------------\n";
             receiptText += `TOTAL: Rs.${total.toFixed(2)}\n`;
             receiptText += "Thank You! Come Again.\n";
 
-            const saleData = {
+            pendingReceiptText = receiptText;
+            pendingSaleData = {
                 id: Date.now(),
                 date: new Date().toLocaleString(),
                 total: total,
                 items: [...cart]
             };
 
-            salesHistory.push(saleData);
+            // Modal Displaying
+            document.getElementById('preview-content').innerText = receiptText;
+            document.getElementById('preview-modal').classList.remove('hidden');
+        }
 
+        function closePreview() {
+            document.getElementById('preview-modal').classList.add('hidden');
+        }
+
+        async function confirmAndPrint() {
+            closePreview();
+
+            // Stock update logic
+            cart.forEach(item => {
+                const prod = products.find(p => p.id === item.id);
+                if(prod) prod.stock -= item.qty;
+            });
+
+            salesHistory.push(pendingSaleData);
             saveData();
 
-            // Push Sale Record to Server
             if (db) {
-                try { await db.from('sales').insert([saleData]); } catch(e){}
+                try { await db.from('sales').insert([pendingSaleData]); } catch(e){}
             }
 
-            await printText(receiptText);
+            await printText(pendingReceiptText);
 
-            alert('බිල අවසන් විය! Stock යාවත්කාලීන කරන ලදී.');
+            alert('බිල සාර්ථකව අවසන් විය!');
             cart = [];
             renderCart();
         }
