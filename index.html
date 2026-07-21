@@ -1,593 +1,125 @@
 <!DOCTYPE html>
-<html lang="si">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile POS & Stock System</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- HTML5 QR Code Scanner CDN -->
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <!-- Supabase JS Client CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS System - Supabase Integration</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-100 font-sans pb-20">
+<body class="bg-gray-100 min-h-screen p-6 flex flex-col items-center">
 
-    <!-- 0. LOGIN MODAL / SCREEN -->
-    <div id="login-screen" class="fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-center">
-            <h2 class="text-2xl font-bold text-gray-800">🔐 POS System Login</h2>
-            <p class="text-xs text-gray-500">කරුණාකර ඔබගේ ගිණුමට ඇතුළු වන්න</p>
-            
-            <div class="space-y-3 text-left">
-                <div>
-                    <label class="text-xs font-semibold text-gray-600">Username</label>
-                    <input type="text" id="login-username" placeholder="Username ඇතුළත් කරන්න" class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                </div>
-                <div>
-                    <label class="text-xs font-semibold text-gray-600">Password</label>
-                    <input type="password" id="login-password" placeholder="••••••••" class="w-full p-2.5 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                </div>
-            </div>
+  <div class="max-w-md w-full bg-white p-6 rounded-xl shadow-md">
+    <h2 class="text-2xl font-bold mb-4 text-gray-800 text-center">Add Product to Database</h2>
 
-            <button onclick="handleLogin()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">
-                ඇතුළු වන්න (Login)
-            </button>
-        </div>
-    </div>
+    <!-- Product Form -->
+    <form id="productForm" onsubmit="addProduct(event)" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Product Name</label>
+        <input type="text" id="p_name" required placeholder="Item Name"
+               class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
 
-    <!-- MAIN APP INTERFACE -->
-    <div id="app-container" class="hidden">
-        <header class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
-            <div>
-                <span class="text-lg font-bold">🏪 Smart Shop POS</span>
-                <span id="user-role-badge" class="ml-2 text-[10px] bg-blue-800 px-2 py-0.5 rounded-full uppercase tracking-wide"></span>
-            </div>
-            <div class="flex items-center gap-2">
-                <button onclick="connectBluetoothPrinter()" class="bg-blue-800 text-xs px-2.5 py-1 rounded-full border border-white">
-                    🛜 Printer
-                </button>
-                <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded-full font-bold">
-                    Logout
-                </button>
-            </div>
-        </header>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Price (LKR)</label>
+        <input type="number" id="p_price" required placeholder="100.00" step="0.01"
+               class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
 
-        <div class="max-w-md mx-auto p-4">
-            <!-- Navigation Tabs -->
-            <div class="flex bg-white rounded-lg shadow mb-4 p-1 text-xs sm:text-sm">
-                <button onclick="switchTab('billing')" id="btn-billing" class="flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg">බිල් කිරීම</button>
-                <button onclick="switchTab('stock')" id="btn-stock" class="admin-only flex-1 py-2 text-center font-semibold text-gray-600 relative">
-                    Stock
-                    <span id="stock-alert-dot" class="hidden absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-                </button>
-                <button onclick="switchTab('reports')" id="btn-reports" class="admin-only flex-1 py-2 text-center font-semibold text-gray-600">වාර්තා</button>
-                <button onclick="switchTab('settings')" id="btn-settings" class="flex-1 py-2 text-center font-semibold text-gray-600">Settings</button>
-            </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Quantity</label>
+        <input type="number" id="p_qty" required placeholder="10"
+               class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
 
-            <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner mb-4"></div>
+      <button type="submit" id="save-btn"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition duration-200">
+        Save to Database
+      </button>
+    </form>
 
-            <!-- BILLING TAB -->
-            <div id="tab-billing" class="space-y-4">
-                <button onclick="startScanner('billing')" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700 flex justify-center items-center gap-2">
-                    📷 Barcode Scan කරන්න (බිලට)
-                </button>
+    <!-- Alert / Message Output -->
+    <div id="statusMsg" class="mt-4 text-center font-medium text-sm hidden"></div>
+  </div>
 
-                <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700">භාණ්ඩයක් තෝරන්න</h3>
-                    <select id="product-select" class="w-full p-2 border rounded-lg">
-                        <option value="">ලෝඩ් වෙමින් පවතී...</option>
-                    </select>
-                    <button onclick="addToCartFromSelect()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">බිලට එකතු කරන්න</button>
-                </div>
+  <script>
+    // 1. Supabase Setup
+    const SUPABASE_URL = "https://vpkwgxrabixokeqppduh.supabase.co";
+    // ⚠️ පහත දැක්වෙන තැනට ඔයාගේ Supabase Project Settings -> API එකේ ඇති anon public key එක paste කරන්න
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwa3dneHJhYml4b2tlcXBwZHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDAyMzUsImV4cCI6MjEwMDIxNjIzNX0.QA9_iwMeVgWFlx8Np-o1pzSATDKj1JHBmf7FnuzEwBw"; 
 
-                <div class="bg-white p-4 rounded-xl shadow">
-                    <h3 class="font-bold text-gray-700 mb-2">බිල්පත් විස්තර</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="border-b text-sm text-gray-600">
-                                    <th class="py-2">භාණ්ඩය</th>
-                                    <th class="py-2">මිල</th>
-                                    <th class="py-2">ප්‍රමාණය</th>
-                                    <th class="py-2"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="cart-items" class="text-sm"></tbody>
-                        </table>
-                    </div>
-                    <div class="mt-4 border-t pt-3 flex justify-between text-lg font-bold">
-                        <span>මුළු මුදල:</span>
-                        <span id="grand-total" class="text-blue-600">Rs. 0.00</span>
-                    </div>
-                    <button onclick="checkoutAndPrint()" class="w-full mt-4 bg-orange-500 text-white py-3 rounded-xl font-bold shadow hover:bg-orange-600">
-                        🧾 Checkout & Print Preview
-                    </button>
-                </div>
-            </div>
+    // Initialize Supabase Client
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            <!-- STOCK TAB -->
-            <div id="tab-stock" class="hidden space-y-4">
-                <div id="low-stock-banner" class="hidden bg-amber-100 border-l-4 border-amber-500 text-amber-800 p-3 rounded-r-lg shadow text-xs font-semibold flex justify-between items-center">
-                    <span id="low-stock-msg">⚠️ ඇතැම් භාණ්ඩවල Stock අඩු වී ඇත!</span>
-                    <button onclick="toggleLowStockFilter()" id="btn-filter-stock" class="bg-amber-600 text-white px-2 py-1 rounded text-xs font-bold">අඩු තොග පමණක් බලන්න</button>
-                </div>
-
-                <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700">අලුත් බඩුවක් / Stock එකතු කරන්න</h3>
-                    <button onclick="startScanner('stock')" class="w-full bg-purple-600 text-white py-2.5 rounded-lg font-bold shadow hover:bg-purple-700 flex justify-center items-center gap-2 text-sm">
-                        📷 Barcode එක Scan කර ගන්න
-                    </button>
-                    <input type="text" id="inv-name" placeholder="භාණ්ඩයේ නම" class="w-full p-2 border rounded-lg">
-                    <div class="flex gap-2">
-                        <input type="number" id="inv-cost" placeholder="ගත් මිල (Cost Price)" class="w-1/2 p-2 border rounded-lg bg-orange-50 border-orange-200">
-                        <input type="number" id="inv-price" placeholder="විකුණන මිල (Selling)" class="w-1/2 p-2 border rounded-lg bg-green-50 border-green-200">
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="number" id="inv-stock" placeholder="තොග ප්‍රමාණය" class="w-1/2 p-2 border rounded-lg">
-                        <input type="text" id="inv-code" placeholder="Barcode (Optional)" class="w-1/2 p-2 border bg-gray-50 rounded-lg text-xs">
-                    </div>
-                    <button onclick="saveProduct()" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold">Stock එකට එකතු කරන්න (DB Sync)</button>
-                </div>
-
-                <div class="bg-white p-4 rounded-xl shadow">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="font-bold text-gray-700">පවතින Stock ලැයිස්තුව</h3>
-                        <button onclick="resetStockFilter()" id="btn-reset-filter" class="hidden text-xs text-blue-600 font-bold underline">සියල්ල පෙන්වන්න</button>
-                    </div>
-                    <div id="inventory-list" class="space-y-3 text-sm"></div>
-                </div>
-            </div>
-
-            <!-- REPORTS TAB -->
-            <div id="tab-reports" class="hidden space-y-4">
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-white p-4 rounded-xl shadow text-center">
-                        <h3 class="font-bold text-gray-500 text-xs">අද මුළු විකුණුම්</h3>
-                        <p id="today-sales" class="text-xl font-extrabold text-blue-600 my-1">Rs. 0.00</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow text-center">
-                        <h3 class="font-bold text-gray-500 text-xs">අද මුළු ලාභය (Profit)</h3>
-                        <p id="today-profit" class="text-xl font-extrabold text-green-600 my-1">Rs. 0.00</p>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-xl shadow">
-                    <h3 class="font-bold text-gray-700 mb-2">විකුණුම් ඉතිහාසය</h3>
-                    <div id="sales-history" class="space-y-2 text-sm max-h-60 overflow-y-auto"></div>
-                </div>
-            </div>
-
-            <!-- SETTINGS TAB -->
-            <div id="tab-settings" class="hidden space-y-4">
-                <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 border-b pb-1">🔑 Password වෙනස් කිරීම</h3>
-                    <div>
-                        <label class="text-xs text-gray-600 font-semibold">වත්මන් Password එක</label>
-                        <input type="password" id="pwd-old" placeholder="••••••••" class="w-full p-2 border rounded-lg text-sm bg-gray-50 mt-1">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-600 font-semibold">අලුත් Password එක</label>
-                        <input type="password" id="pwd-new" placeholder="••••••••" class="w-full p-2 border rounded-lg text-sm bg-gray-50 mt-1">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-600 font-semibold">අලුත් Password එක නැවත ඇතුළත් කරන්න</label>
-                        <input type="password" id="pwd-confirm" placeholder="••••••••" class="w-full p-2 border rounded-lg text-sm bg-gray-50 mt-1">
-                    </div>
-                    <button onclick="changeUserPassword()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700">
-                        Password එක වෙනස් කරන්න
-                    </button>
-                </div>
-
-                <div class="admin-only bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 border-b pb-1">💾 Manual Backup & Restore</h3>
-                    <button onclick="exportBackupData()" class="w-full bg-emerald-600 text-white py-2.5 rounded-lg font-bold hover:bg-emerald-700 text-sm">
-                        📥 Export Backup (.json)
-                    </button>
-                    <div class="border-t pt-2 mt-2">
-                        <label class="text-xs font-semibold text-gray-600 block mb-1">Restore Backup File</label>
-                        <input type="file" id="restore-file-input" accept=".json" class="w-full text-xs text-gray-500 mb-2">
-                        <button onclick="importBackupData()" class="w-full bg-amber-600 text-white py-2 rounded-lg font-bold hover:bg-amber-700 text-sm">
-                            📤 Restore Data
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- PRINT PREVIEW MODAL -->
-    <div id="preview-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
-            <h3 class="font-bold text-lg text-gray-800 border-b pb-2 text-center">🧾 Print Preview</h3>
-            <div class="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-lg font-mono text-xs whitespace-pre-wrap leading-relaxed text-gray-800 max-h-80 overflow-y-auto" id="preview-content"></div>
-            <div class="flex gap-2">
-                <button onclick="closePreview()" class="flex-1 bg-gray-300 text-gray-800 py-2.5 rounded-xl font-bold hover:bg-gray-400">අවලංගුයි</button>
-                <button onclick="confirmAndPrint()" class="flex-1 bg-orange-500 text-white py-2.5 rounded-xl font-bold shadow hover:bg-orange-600">🖨️ Print කරන්න</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // --- 1. SUPABASE CONNECTION ---
-        const SUPABASE_URL = "https://vpkwgxrabixokeqppduh.supabase.co"; 
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwa3dneHJhYml4b2tlcXBwZHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDAyMzUsImV4cCI6MjEwMDIxNjIzNX0.QA9_iwMeVgWFlx8Np-o1pzSATDKj1JHBmf7FnuzEwBw"; 
-        let db = null;
-
-        if (SUPABASE_URL !== "https://vpkwgxrabixokeqppduh.supabase.co") {
-            db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        }
-
-        // Credentials
-        if (!localStorage.getItem('pos_creds')) {
-            localStorage.setItem('pos_creds', JSON.stringify({ admin: '123', user: '123' }));
-        }
-
-        let products = JSON.parse(localStorage.getItem('pos_products')) || [];
-        let salesHistory = JSON.parse(localStorage.getItem('pos_sales')) || [];
-        let cart = [];
-        let printCharacteristic = null;
-        let html5QrCode = null;
-
-        let pendingReceiptText = "";
-        let pendingSaleData = null;
-        let showOnlyLowStock = false;
-        let currentUserRole = localStorage.getItem('pos_user_role') || null;
-
-        // Fetch Data from Supabase Cloud Database
-        async function fetchFromDatabase() {
-            if (!db) return;
-            try {
-                // Fetch Products
-                const { data: dbProducts, error: pErr } = await db.from('products').select('*');
-                if (dbProducts && !pErr) {
-                    products = dbProducts;
-                    localStorage.setItem('pos_products', JSON.stringify(products));
-                }
-
-                // Fetch Sales
-                const { data: dbSales, error: sErr } = await db.from('sales').select('*');
-                if (dbSales && !sErr) {
-                    salesHistory = dbSales;
-                    localStorage.setItem('pos_sales', JSON.stringify(salesHistory));
-                }
-
-                updateProductDropdown();
-                renderInventory();
-                renderReports();
-            } catch (err) {
-                console.log("Offline mode or DB error:", err);
-            }
-        }
-
-        async function saveData() {
-            // Save locally first
-            localStorage.setItem('pos_products', JSON.stringify(products));
-            localStorage.setItem('pos_sales', JSON.stringify(salesHistory));
-            
-            updateProductDropdown();
-            renderInventory();
-            renderReports();
-
-            // Sync with Supabase Database
-            if (db) {
-                try {
-                    await db.from('products').upsert(products);
-                } catch(e) { console.error("Database save error:", e); }
-            }
-        }
-
-        // --- AUTHENTICATION ---
-        function checkAuthState() {
-            if (currentUserRole) {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-container').classList.remove('hidden');
-                document.getElementById('user-role-badge').innerText = currentUserRole;
-
-                document.querySelectorAll('.admin-only').forEach(el => {
-                    if (currentUserRole === 'user') el.classList.add('hidden');
-                    else el.classList.remove('hidden');
-                });
-
-                switchTab('billing');
-                fetchFromDatabase(); // Cloud Database Syncing
+    // 2. Connection Test (Page එක Load වෙද්දීම auto-check වෙනවා)
+    (async () => {
+        console.log("Testing connection to Supabase...");
+        try {
+            const { data, error } = await supabaseClient.from('products').select('*').limit(1);
+            if (error) {
+                console.error("Connection Error:", error.message);
+                alert("⚠️ Supabase Connection Issue: " + error.message + "\n\n(Supabase Table Editor එකේ 'products' නමින් table එකක් තියෙනවාද සහ RLS Disable කරලාද බලන්න)");
             } else {
-                document.getElementById('login-screen').classList.remove('hidden');
-                document.getElementById('app-container').classList.add('hidden');
+                console.log("Connected successfully to Supabase!");
+                alert("✅ Supabase එකට සාර්ථකව සම්බන්ධ වුණා!");
             }
+        } catch (err) {
+            console.error("Unexpected Error:", err);
         }
+    })();
 
-        function handleLogin() {
-            const u = document.getElementById('login-username').value.trim().toLowerCase();
-            const p = document.getElementById('login-password').value.trim();
-            const creds = JSON.parse(localStorage.getItem('pos_creds'));
+    // 3. Form එකෙන් Data Insert කරන Function එක
+    async function addProduct(event) {
+      event.preventDefault(); // Form reload වීම නවත්වයි
 
-            if (creds[u] && creds[u] === p) {
-                currentUserRole = u;
-                localStorage.setItem('pos_user_role', u);
-                checkAuthState();
-            } else {
-                alert('Username හෝ Password වැරදියි!');
-            }
-        }
+      const name = document.getElementById('p_name').value;
+      const price = parseFloat(document.getElementById('p_price').value);
+      const qty = parseInt(document.getElementById('p_qty').value);
+      
+      const saveBtn = document.getElementById('save-btn');
+      const statusMsg = document.getElementById('statusMsg');
 
-        function handleLogout() {
-            localStorage.removeItem('pos_user_role');
-            currentUserRole = null;
-            checkAuthState();
-        }
+      // Loading state
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Saving Data...";
+      statusMsg.classList.add('hidden');
 
-        function changeUserPassword() {
-            const oldP = document.getElementById('pwd-old').value.trim();
-            const newP = document.getElementById('pwd-new').value.trim();
-            const confP = document.getElementById('pwd-confirm').value.trim();
+      try {
+        // Supabase 'products' table එකට Data insert කිරීම
+        const { data, error } = await supabaseClient
+          .from('products')
+          .insert([
+            { name: name, price: price, qty: qty }
+          ]);
 
-            if (!oldP || !newP || !confP) return alert('සියලු කොටස් පුරවන්න!');
-            const creds = JSON.parse(localStorage.getItem('pos_creds'));
+        if (error) throw error;
 
-            if (creds[currentUserRole] !== oldP) return alert('වත්මන් Password එක වැරදියි!');
-            if (newP !== confP) return alert('Passwords එකිනෙකට ගැලපෙන්නේ නැත!');
+        // Success Response
+        alert("🎉 Product එක සාර්ථකව Save වුණා!");
+        showStatus("Data added successfully!", "text-green-600");
+        document.getElementById('productForm').reset(); // Form එක clear කිරීම
 
-            creds[currentUserRole] = newP;
-            localStorage.setItem('pos_creds', JSON.stringify(creds));
-            alert('Password එක සාර්ථකව වෙනස් විය!');
-        }
+      } catch (error) {
+        // Error Handling
+        console.error("Insert Error:", error);
+        alert("❌ Data Save වුණේ නැහැ!\nError: " + error.message);
+        showStatus("Error: " + error.message, "text-red-600");
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Save to Database";
+      }
+    }
 
-        function switchTab(tab) {
-            if (currentUserRole === 'user' && (tab === 'stock' || tab === 'reports')) {
-                return alert('මෙම කොටසට පිවිසීමට අවසර නැත!');
-            }
+    // Helper Function for status text
+    function showStatus(msg, textClass) {
+      const statusMsg = document.getElementById('statusMsg');
+      statusMsg.innerText = msg;
+      statusMsg.className = `mt-4 text-center font-medium text-sm ${textClass}`;
+      statusMsg.classList.remove('hidden');
+    }
+  </script>
 
-            ['billing', 'stock', 'reports', 'settings'].forEach(t => {
-                document.getElementById(`tab-${t}`)?.classList.add('hidden');
-                const btn = document.getElementById(`btn-${t}`);
-                if(btn) btn.className = "flex-1 py-2 text-center font-semibold text-gray-600 relative";
-            });
-            
-            document.getElementById(`tab-${tab}`).classList.remove('hidden');
-            document.getElementById(`btn-${tab}`).className = "flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg relative";
-        }
-
-        // --- BLUETOOTH PRINTER ---
-        async function connectBluetoothPrinter() {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb']
-                });
-                const server = await device.gatt.connect();
-                const services = await server.getPrimaryServices();
-                for (let service of services) {
-                    const characteristics = await service.getCharacteristics();
-                    if (characteristics.length > 0) {
-                        printCharacteristic = characteristics[0];
-                        alert("Printer එක Connect විය!");
-                        break;
-                    }
-                }
-            } catch (error) {
-                alert("Printer connection failed: " + error.message);
-            }
-        }
-
-        async function printText(text) {
-            if (!printCharacteristic) return alert("Bluetooth Printer එකක් Connect කර නැත.");
-            const encoder = new TextEncoder();
-            await printCharacteristic.writeValue(encoder.encode(text + "\n\n\n"));
-        }
-
-        // --- BARCODE SCANNER ---
-        function startScanner(mode) {
-            document.getElementById('reader').classList.remove('hidden');
-            if (html5QrCode) html5QrCode.stop().then(() => initCamera(mode)).catch(() => initCamera(mode));
-            else initCamera(mode);
-        }
-
-        function initCamera(mode) {
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 150 } },
-                (decodedText) => {
-                    if (mode === 'billing') {
-                        const found = products.find(p => p.code === decodedText);
-                        if (found) addToCart(found);
-                        else alert('මෙම Barcode එක නොමැත: ' + decodedText);
-                    } else if (mode === 'stock') {
-                        document.getElementById('inv-code').value = decodedText;
-                        const existing = products.find(p => p.code === decodedText);
-                        if (existing) {
-                            document.getElementById('inv-name').value = existing.name;
-                            document.getElementById('inv-cost').value = existing.cost || 0;
-                            document.getElementById('inv-price').value = existing.price;
-                        }
-                    }
-                    html5QrCode.stop().then(() => document.getElementById('reader').classList.add('hidden'));
-                },
-                () => {}
-            );
-        }
-
-        // --- STOCK MANAGEMENT ---
-        function saveProduct() {
-            const name = document.getElementById('inv-name').value.trim();
-            const cost = parseFloat(document.getElementById('inv-cost').value) || 0;
-            const price = parseFloat(document.getElementById('inv-price').value);
-            const stock = parseInt(document.getElementById('inv-stock').value);
-            const code = document.getElementById('inv-code').value.trim();
-
-            if(!name || isNaN(price) || isNaN(stock)) return alert('විස්තර නිවැරදිව ඇතුළත් කරන්න!');
-
-            const idx = products.findIndex(p => (code && p.code === code) || p.name.toLowerCase() === name.toLowerCase());
-            
-            if(idx > -1) {
-                products[idx].stock += stock;
-                products[idx].price = price;
-                products[idx].cost = cost;
-                if(code) products[idx].code = code;
-            } else {
-                products.push({ id: Date.now(), name, cost, price, stock, code });
-            }
-
-            saveData();
-            document.getElementById('inv-name').value = '';
-            document.getElementById('inv-cost').value = '';
-            document.getElementById('inv-price').value = '';
-            document.getElementById('inv-stock').value = '';
-            document.getElementById('inv-code').value = '';
-            alert('Stock එක සුරක්ෂිත විය!');
-        }
-
-        function renderInventory() {
-            const list = document.getElementById('inventory-list');
-            if(!list) return;
-            list.innerHTML = '';
-            
-            let lowCount = 0;
-            const listToRender = showOnlyLowStock ? products.filter(p => p.stock < 5) : products;
-
-            products.forEach(p => { if (p.stock < 5) lowCount++; });
-
-            const banner = document.getElementById('low-stock-banner');
-            if (lowCount > 0 && banner) {
-                banner.classList.remove('hidden');
-                document.getElementById('low-stock-msg').innerText = `⚠️ භාණ්ඩ ${lowCount}ක Stock අඩු වී ඇත!`;
-            } else if (banner) banner.classList.add('hidden');
-
-            if (listToRender.length === 0) return list.innerHTML = `<p class="text-center text-gray-500 text-xs py-4">භාණ්ඩ නැත.</p>`;
-
-            listToRender.forEach(p => {
-                list.innerHTML += `
-                    <div class="flex justify-between items-center border-b pb-2">
-                        <div>
-                            <p class="font-bold text-gray-800">${p.name}</p>
-                            <p class="text-xs text-gray-500">ගත්: Rs.${p.cost || 0} | විකුණන: Rs.${p.price}</p>
-                            <p class="text-xs font-semibold text-green-600">Stock: ${p.stock}</p>
-                        </div>
-                        <button onclick="deleteProduct(${p.id})" class="text-red-500 text-xs font-bold">Delete</button>
-                    </div>
-                `;
-            });
-        }
-
-        async function deleteProduct(id) {
-            if(confirm('ඉවත් කරන්නද?')) {
-                products = products.filter(p => p.id !== id);
-                if (db) await db.from('products').delete().eq('id', id);
-                saveData();
-            }
-        }
-
-        function updateProductDropdown() {
-            const select = document.getElementById('product-select');
-            if(!select) return;
-            select.innerHTML = '<option value="">භාණ්ඩයක් තෝරන්න...</option>';
-            products.forEach(p => {
-                select.innerHTML += `<option value="${p.id}" ${p.stock <= 0 ? 'disabled' : ''}>${p.name} (Stock: ${p.stock}) - Rs.${p.price}</option>`;
-            });
-        }
-
-        // --- BILLING & CHECKOUT ---
-        function addToCartFromSelect() {
-            const id = document.getElementById('product-select').value;
-            if(id) addToCart(products.find(p => p.id == id));
-        }
-
-        function addToCart(product) {
-            if(product.stock <= 0) return alert('Stock නැත!');
-            const existing = cart.find(i => i.id === product.id);
-            if(existing) existing.qty += 1;
-            else cart.push({ ...product, qty: 1 });
-            renderCart();
-        }
-
-        function renderCart() {
-            const tbody = document.getElementById('cart-items');
-            tbody.innerHTML = '';
-            let total = 0;
-            cart.forEach((item, index) => {
-                total += item.price * item.qty;
-                tbody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="py-2">${item.name}</td>
-                        <td class="py-2">${item.price * item.qty}</td>
-                        <td class="py-2">${item.qty}</td>
-                        <td class="py-2"><button onclick="cart.splice(${index},1);renderCart()" class="text-red-500">x</button></td>
-                    </tr>
-                `;
-            });
-            document.getElementById('grand-total').innerText = 'Rs. ' + total.toFixed(2);
-        }
-
-        function checkoutAndPrint() {
-            if(cart.length === 0) return alert('බිල්පත හිස්ය!');
-            let total = 0, totalCost = 0;
-            cart.forEach(i => { total += i.price * i.qty; totalCost += (i.cost || 0) * i.qty; });
-
-            let cashInput = prompt(`මුළු එකතුව: Rs. ${total.toFixed(2)}\nලබා දුන් මුදල:`, total.toFixed(0));
-            if (!cashInput || parseFloat(cashInput) < total) return alert('මුදල් ප්‍රමාණවත් නැත!');
-
-            let cashPaid = parseFloat(cashInput);
-            let changeDue = cashPaid - total;
-
-            let receiptText = "=== SMART SHOP POS ===\n" + new Date().toLocaleString() + "\n------------------------------\n";
-            cart.forEach(i => { receiptText += `${i.name} x ${i.qty} = Rs.${i.price * i.qty}\n`; });
-            receiptText += `------------------------------\nTOTAL : Rs.${total.toFixed(2)}\nCASH  : Rs.${cashPaid.toFixed(2)}\nCHANGE: Rs.${changeDue.toFixed(2)}\n`;
-
-            pendingReceiptText = receiptText;
-            pendingSaleData = { id: Date.now(), date: new Date().toLocaleString(), total, profit: total - totalCost, cashPaid, changeDue, items: cart };
-
-            document.getElementById('preview-content').innerText = receiptText;
-            document.getElementById('preview-modal').classList.remove('hidden');
-        }
-
-        function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
-
-        async function confirmAndPrint() {
-            closePreview();
-            cart.forEach(item => {
-                const prod = products.find(p => p.id === item.id);
-                if(prod) prod.stock -= item.qty;
-            });
-
-            salesHistory.push(pendingSaleData);
-            
-            // Save to DB
-            if (db) {
-                try { await db.from('sales').insert([pendingSaleData]); } catch(e){}
-            }
-
-            saveData();
-            await printText(pendingReceiptText);
-            alert('බිල සාර්ථකයි!');
-            cart = [];
-            renderCart();
-        }
-
-        function renderReports() {
-            const todayStr = new Date().toLocaleDateString();
-            let todayTotal = 0, todayProfit = 0;
-            const historyDiv = document.getElementById('sales-history');
-            if(!historyDiv) return;
-            historyDiv.innerHTML = '';
-
-            salesHistory.forEach(sale => {
-                if(sale.date.includes(todayStr)) {
-                    todayTotal += sale.total;
-                    todayProfit += (sale.profit || 0);
-                }
-                historyDiv.innerHTML += `
-                    <div class="border-b pb-1 flex justify-between">
-                        <div><p class="text-xs text-gray-500">${sale.date}</p></div>
-                        <span class="font-bold text-gray-700">Rs. ${sale.total.toFixed(2)}</span>
-                    </div>
-                `;
-            });
-
-            document.getElementById('today-sales').innerText = 'Rs. ' + todayTotal.toFixed(2);
-            document.getElementById('today-profit').innerText = 'Rs. ' + todayProfit.toFixed(2);
-        }
-
-        checkAuthState();
-    </script>
 </body>
 </html>
