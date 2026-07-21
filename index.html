@@ -209,11 +209,11 @@
 
     <script>
         // --- 1. SUPABASE CONNECTION ---
-        const SUPABASE_URL = "vpkwgxrabixokeqppduh"; 
+        const SUPABASE_URL = "https://vpkwgxrabixokeqppduh.supabase.co/rest/v1/"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwa3dneHJhYml4b2tlcXBwZHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDAyMzUsImV4cCI6MjEwMDIxNjIzNX0.QA9_iwMeVgWFlx8Np-o1pzSATDKj1JHBmf7FnuzEwBw"; 
         let db = null;
 
-        if (SUPABASE_URL !== "vpkwgxrabixokeqppduh") {
+        if (SUPABASE_URL !== "https://vpkwgxrabixokeqppduh.supabase.co/rest/v1/") {
             db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         }
 
