@@ -31,14 +31,14 @@
             <button onclick="switchTab('reports')" id="btn-reports" class="flex-1 py-2 text-center font-semibold text-gray-600">වාර්තා</button>
         </div>
 
+        <!-- Shared Live Camera Scanner Area -->
+        <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner mb-4"></div>
+
         <!-- 1. BILLING TAB -->
         <div id="tab-billing" class="space-y-4">
-            <button onclick="startScanner()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700 flex justify-center items-center gap-2">
-                📷 Barcode Scan කරන්න
+            <button onclick="startScanner('billing')" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700 flex justify-center items-center gap-2">
+                📷 Barcode Scan කරන්න (බිලට)
             </button>
-            
-            <!-- Live Camera Container -->
-            <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner"></div>
 
             <div class="bg-white p-4 rounded-xl shadow space-y-3">
                 <h3 class="font-bold text-gray-700">භාණ්ඩයක් තෝරන්න</h3>
@@ -78,13 +78,19 @@
         <div id="tab-stock" class="hidden space-y-4">
             <div class="bg-white p-4 rounded-xl shadow space-y-3">
                 <h3 class="font-bold text-gray-700">අලුත් බඩුවක් / Stock එකතු කරන්න</h3>
+                
+                <!-- Barcode Scanner Button for Stock -->
+                <button onclick="startScanner('stock')" class="w-full bg-purple-600 text-white py-2.5 rounded-lg font-bold shadow hover:bg-purple-700 flex justify-center items-center gap-2 text-sm">
+                    📷 Barcode එක Scan කර ගන්න
+                </button>
+
                 <input type="text" id="inv-name" placeholder="භාණ්ඩයේ නම" class="w-full p-2 border rounded-lg">
                 <div class="flex gap-2">
                     <input type="number" id="inv-price" placeholder="මිල (Rs.)" class="w-1/2 p-2 border rounded-lg">
                     <input type="number" id="inv-stock" placeholder="තොග ප්‍රමාණය" class="w-1/2 p-2 border rounded-lg">
                 </div>
-                <input type="text" id="inv-code" placeholder="Barcode අංකය (optional)" class="w-full p-2 border rounded-lg">
-                <button onclick="saveProduct()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">Stock එකට එකතු කරන්න</button>
+                <input type="text" id="inv-code" placeholder="Barcode අංකය" class="w-full p-2 border bg-gray-50 rounded-lg">
+                <button onclick="saveProduct()" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold">Stock එකට එකතු කරන්න</button>
             </div>
 
             <div class="bg-white p-4 rounded-xl shadow">
@@ -112,7 +118,6 @@
         <div class="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
             <h3 class="font-bold text-lg text-gray-800 border-b pb-2 text-center">🧾 Print Preview</h3>
             
-            <!-- Receipt Print Area -->
             <div class="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-lg font-mono text-xs whitespace-pre-wrap leading-relaxed text-gray-800 max-h-80 overflow-y-auto" id="preview-content">
             </div>
 
@@ -208,7 +213,7 @@
 
         async function printText(text) {
             if (!printCharacteristic) {
-                alert("Bluetooth Printer එකක් Connect කර නොමැත. (බිල්පත System එකේ Save විය)");
+                alert("Bluetooth Printer එකක් Connect කර නොමැත.");
                 return false;
             }
             const encoder = new TextEncoder();
@@ -217,19 +222,19 @@
             return true;
         }
 
-        // --- Live Camera Barcode Scanner ---
-        function startScanner() {
+        // --- Multi-purpose Barcode Scanner ---
+        function startScanner(mode) {
             const readerDiv = document.getElementById('reader');
             readerDiv.classList.remove('hidden');
 
             if (html5QrCode) {
-                html5QrCode.stop().then(() => initCamera()).catch(() => initCamera());
+                html5QrCode.stop().then(() => initCamera(mode)).catch(() => initCamera(mode));
             } else {
-                initCamera();
+                initCamera(mode);
             }
         }
 
-        function initCamera() {
+        function initCamera(mode) {
             html5QrCode = new Html5Qrcode("reader");
             
             html5QrCode.start(
@@ -239,12 +244,27 @@
                     qrbox: { width: 250, height: 150 }
                 },
                 (decodedText) => {
-                    const found = products.find(p => p.code === decodedText);
-                    if (found) {
-                        addToCart(found);
-                        alert(found.name + ' බිලට එකතු විය!');
-                    } else {
-                        alert('මෙම Barcode එකට අදාළ භාණ්ඩයක් Stock එකේ නැත: ' + decodedText);
+                    if (mode === 'billing') {
+                        // Billing Scan Logic
+                        const found = products.find(p => p.code === decodedText);
+                        if (found) {
+                            addToCart(found);
+                            alert(found.name + ' බිලට එකතු විය!');
+                        } else {
+                            alert('මෙම Barcode එකට අදාළ භාණ්ඩයක් Stock එකේ නැත: ' + decodedText);
+                        }
+                    } else if (mode === 'stock') {
+                        // Stock Entry Scan Logic
+                        document.getElementById('inv-code').value = decodedText;
+                        const existing = products.find(p => p.code === decodedText);
+                        
+                        if (existing) {
+                            document.getElementById('inv-name').value = existing.name;
+                            document.getElementById('inv-price').value = existing.price;
+                            alert(`දැනටමත් පවතින Item එකක් හමු විය: "${existing.name}". එකතු කරන Stock ප්‍රමාණය ඇතුළත් කරන්න.`);
+                        } else {
+                            alert('අලුත් Barcode එකක් හඳුනා ගන්නා ලදී: ' + decodedText);
+                        }
                     }
                     
                     html5QrCode.stop().then(() => {
@@ -259,17 +279,19 @@
 
         // --- Stock Management ---
         function saveProduct() {
-            const name = document.getElementById('inv-name').value;
+            const name = document.getElementById('inv-name').value.trim();
             const price = parseFloat(document.getElementById('inv-price').value);
             const stock = parseInt(document.getElementById('inv-stock').value);
-            const code = document.getElementById('inv-code').value;
+            const code = document.getElementById('inv-code').value.trim();
 
             if(!name || isNaN(price) || isNaN(stock)) {
                 alert('කරුණාකර සියලු විස්තර නිවැරදිව ඇතුළත් කරන්න!');
                 return;
             }
 
-            const existingIndex = products.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+            // Search by Barcode first, then by Name
+            const existingIndex = products.findIndex(p => (code && p.code === code) || p.name.toLowerCase() === name.toLowerCase());
+            
             if(existingIndex > -1) {
                 products[existingIndex].stock += stock;
                 products[existingIndex].price = price;
@@ -283,7 +305,7 @@
             document.getElementById('inv-price').value = '';
             document.getElementById('inv-stock').value = '';
             document.getElementById('inv-code').value = '';
-            alert('Stock එක යාවත්කාලීන විය!');
+            alert('Stock එක සාර්ථකව යාවත්කාලීන විය!');
         }
 
         function renderInventory() {
@@ -425,7 +447,6 @@
                 items: [...cart]
             };
 
-            // Modal Displaying
             document.getElementById('preview-content').innerText = receiptText;
             document.getElementById('preview-modal').classList.remove('hidden');
         }
@@ -437,7 +458,6 @@
         async function confirmAndPrint() {
             closePreview();
 
-            // Stock update logic
             cart.forEach(item => {
                 const prod = products.find(p => p.id === item.id);
                 if(prod) prod.stock -= item.qty;
