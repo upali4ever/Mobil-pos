@@ -31,14 +31,14 @@
             <button onclick="switchTab('reports')" id="btn-reports" class="flex-1 py-2 text-center font-semibold text-gray-600">වාර්තා</button>
         </div>
 
+        <!-- Shared Live Camera Scanner Container -->
+        <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner mb-4"></div>
+
         <!-- 1. BILLING TAB -->
         <div id="tab-billing" class="space-y-4">
-            <button onclick="startScanner()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700 flex justify-center items-center gap-2">
-                📷 Barcode Scan කරන්න
+            <button onclick="startBillingScanner()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700 flex justify-center items-center gap-2">
+                📷 Barcode Scan කර බිලට එක් කරන්න
             </button>
-            
-            <!-- Live Camera Container -->
-            <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner"></div>
 
             <div class="bg-white p-4 rounded-xl shadow space-y-3">
                 <h3 class="font-bold text-gray-700">භාණ්ඩයක් තෝරන්න</h3>
@@ -77,14 +77,20 @@
         <!-- 2. STOCK MANAGEMENT TAB -->
         <div id="tab-stock" class="hidden space-y-4">
             <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                <h3 class="font-bold text-gray-700">Add Product to Database</h3>
+                <h3 class="font-bold text-gray-700">Stock එකට භාණ්ඩ එකතු කරන්න</h3>
+                
+                <!-- Stock Barcode Scan Button -->
+                <button onclick="startStockScanner()" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold shadow hover:bg-indigo-700 flex justify-center items-center gap-2">
+                    📷 Barcode එක Scan කරන්න
+                </button>
+
                 <input type="text" id="inv-name" placeholder="Product Name" class="w-full p-2 border rounded-lg">
                 <div class="flex gap-2">
                     <input type="number" id="inv-price" placeholder="Price (LKR)" class="w-1/2 p-2 border rounded-lg">
                     <input type="number" id="inv-stock" placeholder="Quantity / Stock" class="w-1/2 p-2 border rounded-lg">
                 </div>
-                <input type="text" id="inv-code" placeholder="Barcode (optional)" class="w-full p-2 border rounded-lg">
-                <button onclick="saveProduct()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">Stock එකට එකතු කරන්න</button>
+                <input type="text" id="inv-code" placeholder="Barcode Number" class="w-full p-2 border bg-gray-50 rounded-lg">
+                <button onclick="saveProduct()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">Stock එකට Save කරන්න</button>
             </div>
 
             <div class="bg-white p-4 rounded-xl shadow">
@@ -109,7 +115,7 @@
 
     <!-- JavaScript Logic -->
     <script>
-        // --- SUPABASE SERVER SETUP ---
+       // --- SUPABASE SERVER SETUP ---
         const SUPABASE_URL = "https://vpkwgxrabixokeqppduh.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwa3dneHJhYml4b2tlcXBwZHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDAyMzUsImV4cCI6MjEwMDIxNjIzNX0.QA9_iwMeVgWFlx8Np-o1pzSATDKj1JHBmf7FnuzEwBw";
         let db = null;
@@ -150,7 +156,6 @@
             renderInventory();
             renderReports();
 
-            // Cloud Server Sync (Both stock and qty map to avoid schema errors)
             if (db) {
                 try {
                     const dbProducts = products.map(p => ({
@@ -158,7 +163,7 @@
                         name: p.name,
                         price: p.price,
                         stock: p.stock,
-                        qty: p.stock, // Sent to both columns for compatibility
+                        qty: p.stock,
                         code: p.code || null
                     }));
                     const { error } = await db.from('products').upsert(dbProducts);
@@ -172,6 +177,7 @@
         }
 
         function switchTab(tab) {
+            stopScanner();
             ['billing', 'stock', 'reports'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
                 document.getElementById(`btn-${t}`).className = "flex-1 py-2 text-center font-semibold text-gray-600";
@@ -213,19 +219,47 @@
             return true;
         }
 
-        // --- Live Camera Barcode Scanner ---
-        function startScanner() {
+        // --- CAMERA SCANNER LOGIC (Shared for Billing and Stock) ---
+        function startBillingScanner() {
+            initCamera((decodedText) => {
+                const found = products.find(p => p.code === decodedText);
+                if (found) {
+                    addToCart(found);
+                    alert(found.name + ' බිලට එකතු විය!');
+                } else {
+                    alert('මෙම Barcode එකට අදාළ භාණ්ඩයක් Stock එකේ නැත: ' + decodedText);
+                }
+            });
+        }
+
+        function startStockScanner() {
+            initCamera((decodedText) => {
+                document.getElementById('inv-code').value = decodedText;
+                
+                // ඊට අදාළ Item එකක් දැනටමත් තියෙනවා නම් Auto Fill වෙනවා
+                const existing = products.find(p => p.code === decodedText);
+                if (existing) {
+                    document.getElementById('inv-name').value = existing.name;
+                    document.getElementById('inv-price').value = existing.price;
+                    alert('Barcode එක හඳුනා ගන්නා ලදී! (මෙම භාණ්ඩය දැනටමත් Stock එකේ ඇත)');
+                } else {
+                    alert('Barcode එක ඇතුළත් විය: ' + decodedText);
+                }
+            });
+        }
+
+        function initCamera(onScanSuccess) {
             const readerDiv = document.getElementById('reader');
             readerDiv.classList.remove('hidden');
 
             if (html5QrCode) {
-                html5QrCode.stop().then(() => initCamera()).catch(() => initCamera());
+                html5QrCode.stop().then(() => openCamera(onScanSuccess)).catch(() => openCamera(onScanSuccess));
             } else {
-                initCamera();
+                openCamera(onScanSuccess);
             }
         }
 
-        function initCamera() {
+        function openCamera(onScanSuccess) {
             html5QrCode = new Html5Qrcode("reader");
             
             html5QrCode.start(
@@ -235,22 +269,25 @@
                     qrbox: { width: 250, height: 150 }
                 },
                 (decodedText) => {
-                    const found = products.find(p => p.code === decodedText);
-                    if (found) {
-                        addToCart(found);
-                        alert(found.name + ' බිලට එකතු විය!');
-                    } else {
-                        alert('මෙම Barcode එකට අදාළ භාණ්ඩයක් Stock එකේ නැත: ' + decodedText);
-                    }
-                    
-                    html5QrCode.stop().then(() => {
-                        document.getElementById('reader').classList.add('hidden');
-                    });
+                    onScanSuccess(decodedText);
+                    stopScanner();
                 },
                 (errorMessage) => {}
             ).catch(err => {
                 alert("කැමරාව Open කිරීමට නොහැකි විය: " + err);
             });
+        }
+
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('reader').classList.add('hidden');
+                }).catch(() => {
+                    document.getElementById('reader').classList.add('hidden');
+                });
+            } else {
+                document.getElementById('reader').classList.add('hidden');
+            }
         }
 
         // --- Stock Management ---
@@ -265,10 +302,15 @@
                 return;
             }
 
-            const existingIndex = products.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+            // Code එකෙන් හෝ Name එකෙන් කලින් එකක් තියෙනවාද බලනවා
+            const existingIndex = products.findIndex(p => 
+                (code && p.code === code) || p.name.toLowerCase() === name.toLowerCase()
+            );
+
             if(existingIndex > -1) {
                 products[existingIndex].stock += stock;
                 products[existingIndex].price = price;
+                products[existingIndex].name = name;
                 if(code) products[existingIndex].code = code;
             } else {
                 products.push({ id: Date.now(), name, price, stock, code });
