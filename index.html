@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- HTML5 QR Code Scanner CDN -->
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 font-sans pb-20">
 
@@ -31,11 +33,11 @@
 
         <!-- 1. BILLING TAB -->
         <div id="tab-billing" class="space-y-4">
-            <button onclick="startScanner()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700">
+            <button onclick="startScanner()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700 flex justify-center items-center gap-2">
                 📷 Barcode Scan කරන්න
             </button>
             
-            <!-- Live Camera Display Container -->
+            <!-- Live Camera Container -->
             <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner"></div>
 
             <div class="bg-white p-4 rounded-xl shadow space-y-3">
@@ -107,18 +109,49 @@
 
     <!-- JavaScript Logic -->
     <script>
+        // --- SUPABASE SERVER SETUP ---
+        const SUPABASE_URL = "YOUR_SUPABASE_URL_HERE";
+        const SUPABASE_KEY = "YOUR_SUPABASE_KEY_HERE";
+        let db = null;
+
+        if (SUPABASE_URL !== "YOUR_SUPABASE_URL_HERE") {
+            db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
+
         let products = JSON.parse(localStorage.getItem('pos_products')) || [];
         let salesHistory = JSON.parse(localStorage.getItem('pos_sales')) || [];
         let cart = [];
         let printCharacteristic = null;
         let html5QrCode = null;
 
-        function saveData() {
+        async function syncWithServer() {
+            if (!db) return;
+            try {
+                // Fetch Products from Server
+                const { data: serverProducts } = await db.from('products').select('*');
+                if (serverProducts && serverProducts.length > 0) {
+                    products = serverProducts;
+                    localStorage.setItem('pos_products', JSON.stringify(products));
+                }
+            } catch (err) {
+                console.log("Server sync failed, using offline cache.");
+            }
+        }
+
+        async function saveData() {
             localStorage.setItem('pos_products', JSON.stringify(products));
             localStorage.setItem('pos_sales', JSON.stringify(salesHistory));
+            
             updateProductDropdown();
             renderInventory();
             renderReports();
+
+            // Cloud Server Sync (Optional)
+            if (db) {
+                try {
+                    await db.from('products').upsert(products);
+                } catch(e) { console.error(e); }
+            }
         }
 
         function switchTab(tab) {
@@ -203,7 +236,7 @@
                     // Scanning errors ignore
                 }
             ).catch(err => {
-                alert("කැමරාව Open කිරීමට නොහැකි විය. Permission ලබාදී ඇත්දැයි පරීක්ෂා කරන්න: " + err);
+                alert("කැමරාව Open කිරීමට නොහැකි විය: " + err);
             });
         }
 
@@ -369,14 +402,21 @@
             receiptText += `TOTAL: Rs.${total.toFixed(2)}\n`;
             receiptText += "Thank You! Come Again.\n";
 
-            salesHistory.push({
+            const saleData = {
                 id: Date.now(),
                 date: new Date().toLocaleString(),
                 total: total,
                 items: [...cart]
-            });
+            };
+
+            salesHistory.push(saleData);
 
             saveData();
+
+            // Push Sale Record to Server
+            if (db) {
+                try { await db.from('sales').insert([saleData]); } catch(e){}
+            }
 
             await printText(receiptText);
 
@@ -408,6 +448,7 @@
         }
 
         // Initial setup
+        syncWithServer();
         updateProductDropdown();
         renderInventory();
         renderReports();
