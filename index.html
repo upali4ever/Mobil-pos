@@ -447,19 +447,39 @@
 
             let total = 0;
             let totalCost = 0;
+
+            cart.forEach(item => {
+                total += item.price * item.qty;
+                totalCost += (item.cost || 0) * item.qty;
+            });
+
+            // Prompt for cash paid by customer
+            let cashInput = prompt(`මුළු එකතුව: Rs. ${total.toFixed(2)}\nපාරිභෝගිකයා ලබා දුන් මුදල (Rs.) ඇතුළත් කරන්න:`, total.toFixed(0));
+            
+            if (cashInput === null) return; // User cancelled
+            
+            let cashPaid = parseFloat(cashInput);
+            if (isNaN(cashPaid) || cashPaid < total) {
+                alert('ඇතුළත් කළ මුදල ප්‍රමාණවත් නැත!');
+                return;
+            }
+
+            let changeDue = cashPaid - total;
+
             let receiptText = "=== SMART SHOP POS ===\n";
             receiptText += "Date: " + new Date().toLocaleString() + "\n";
             receiptText += "------------------------------\n";
 
             cart.forEach(item => {
                 const itemTotal = item.price * item.qty;
-                total += itemTotal;
-                totalCost += (item.cost || 0) * item.qty;
                 receiptText += `${item.name} x ${item.qty} = Rs.${itemTotal}\n`;
             });
 
             receiptText += "------------------------------\n";
-            receiptText += `TOTAL: Rs.${total.toFixed(2)}\n`;
+            receiptText += `TOTAL    : Rs.${total.toFixed(2)}\n`;
+            receiptText += `CASH     : Rs.${cashPaid.toFixed(2)}\n`;
+            receiptText += `CHANGE   : Rs.${changeDue.toFixed(2)}\n`;
+            receiptText += "------------------------------\n";
             receiptText += "Thank You! Come Again.\n";
 
             pendingReceiptText = receiptText;
@@ -468,6 +488,8 @@
                 date: new Date().toLocaleString(),
                 total: total,
                 profit: total - totalCost,
+                cashPaid: cashPaid,
+                changeDue: changeDue,
                 items: [...cart]
             };
 
