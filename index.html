@@ -1,125 +1,477 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="si">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>POS System - Supabase Integration</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase JS CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile POS & Stock System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTML5 QR Code Scanner CDN -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-100 min-h-screen p-6 flex flex-col items-center">
+<body class="bg-gray-100 font-sans pb-20">
 
-  <div class="max-w-md w-full bg-white p-6 rounded-xl shadow-md">
-    <h2 class="text-2xl font-bold mb-4 text-gray-800 text-center">Add Product to Database</h2>
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 text-center text-xl font-bold shadow-md flex justify-between items-center">
+        <span>🏪 Smart Shop POS</span>
+        <button onclick="connectBluetoothPrinter()" class="bg-blue-800 text-xs px-3 py-1 rounded-full border border-white">
+            🛜 Printer Connect
+        </button>
+    </header>
 
-    <!-- Product Form -->
-    <form id="productForm" onsubmit="addProduct(event)" class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Product Name</label>
-        <input type="text" id="p_name" required placeholder="Item Name"
-               class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-      </div>
+    <!-- Main Container -->
+    <div class="max-w-md mx-auto p-4">
 
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Price (LKR)</label>
-        <input type="number" id="p_price" required placeholder="100.00" step="0.01"
-               class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-      </div>
+        <!-- Navigation Tabs -->
+        <div class="flex bg-white rounded-lg shadow mb-4 p-1 text-xs sm:text-sm">
+            <button onclick="switchTab('billing')" id="btn-billing" class="flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg">බිල් කිරීම</button>
+            <button onclick="switchTab('stock')" id="btn-stock" class="flex-1 py-2 text-center font-semibold text-gray-600">Stock පාලනය</button>
+            <button onclick="switchTab('reports')" id="btn-reports" class="flex-1 py-2 text-center font-semibold text-gray-600">වාර්තා</button>
+        </div>
 
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Quantity</label>
-        <input type="number" id="p_qty" required placeholder="10"
-               class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-      </div>
+        <!-- 1. BILLING TAB -->
+        <div id="tab-billing" class="space-y-4">
+            <button onclick="startScanner()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700 flex justify-center items-center gap-2">
+                📷 Barcode Scan කරන්න
+            </button>
+            
+            <!-- Live Camera Container -->
+            <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner"></div>
 
-      <button type="submit" id="save-btn"
-              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition duration-200">
-        Save to Database
-      </button>
-    </form>
+            <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                <h3 class="font-bold text-gray-700">භාණ්ඩයක් තෝරන්න</h3>
+                <select id="product-select" class="w-full p-2 border rounded-lg">
+                    <option value="">භාණ්ඩයක් තෝරන්න...</option>
+                </select>
+                <button onclick="addToCartFromSelect()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">බිලට එකතු කරන්න</button>
+            </div>
 
-    <!-- Alert / Message Output -->
-    <div id="statusMsg" class="mt-4 text-center font-medium text-sm hidden"></div>
-  </div>
+            <!-- Cart Table -->
+            <div class="bg-white p-4 rounded-xl shadow">
+                <h3 class="font-bold text-gray-700 mb-2">බිල්පත් විස්තර</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b text-sm text-gray-600">
+                                <th class="py-2">භාණ්ඩය</th>
+                                <th class="py-2">මිල</th>
+                                <th class="py-2">ප්‍රමාණය</th>
+                                <th class="py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cart-items" class="text-sm"></tbody>
+                    </table>
+                </div>
+                <div class="mt-4 border-t pt-3 flex justify-between text-lg font-bold">
+                    <span>මුළු මුදල:</span>
+                    <span id="grand-total" class="text-blue-600">Rs. 0.00</span>
+                </div>
+                <button onclick="checkoutAndPrint()" class="w-full mt-4 bg-orange-500 text-white py-3 rounded-xl font-bold shadow hover:bg-orange-600">
+                    🖨️ Checkout & Print Bill
+                </button>
+            </div>
+        </div>
 
-  <script>
-    // 1. Supabase Setup
-    const SUPABASE_URL = "https://vpkwgxrabixokeqppduh.supabase.co";
-    // ⚠️ පහත දැක්වෙන තැනට ඔයාගේ Supabase Project Settings -> API එකේ ඇති anon public key එක paste කරන්න
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwa3dneHJhYml4b2tlcXBwZHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDAyMzUsImV4cCI6MjEwMDIxNjIzNX0.QA9_iwMeVgWFlx8Np-o1pzSATDKj1JHBmf7FnuzEwBw"; 
+        <!-- 2. STOCK MANAGEMENT TAB -->
+        <div id="tab-stock" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                <h3 class="font-bold text-gray-700">Add Product to Database</h3>
+                <input type="text" id="inv-name" placeholder="Product Name" class="w-full p-2 border rounded-lg">
+                <div class="flex gap-2">
+                    <input type="number" id="inv-price" placeholder="Price (LKR)" class="w-1/2 p-2 border rounded-lg">
+                    <input type="number" id="inv-stock" placeholder="Quantity / Stock" class="w-1/2 p-2 border rounded-lg">
+                </div>
+                <input type="text" id="inv-code" placeholder="Barcode (optional)" class="w-full p-2 border rounded-lg">
+                <button onclick="saveProduct()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">Stock එකට එකතු කරන්න</button>
+            </div>
 
-    // Initialize Supabase Client
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            <div class="bg-white p-4 rounded-xl shadow">
+                <h3 class="font-bold text-gray-700 mb-2">පවතින Stock ලැයිස්තුව</h3>
+                <div id="inventory-list" class="space-y-3 text-sm"></div>
+            </div>
+        </div>
 
-    // 2. Connection Test (Page එක Load වෙද්දීම auto-check වෙනවා)
-    (async () => {
-        console.log("Testing connection to Supabase...");
-        try {
-            const { data, error } = await supabaseClient.from('products').select('*').limit(1);
-            if (error) {
-                console.error("Connection Error:", error.message);
-                alert("⚠️ Supabase Connection Issue: " + error.message + "\n\n(Supabase Table Editor එකේ 'products' නමින් table එකක් තියෙනවාද සහ RLS Disable කරලාද බලන්න)");
-            } else {
-                console.log("Connected successfully to Supabase!");
-                alert("✅ Supabase එකට සාර්ථකව සම්බන්ධ වුණා!");
-            }
-        } catch (err) {
-            console.error("Unexpected Error:", err);
+        <!-- 3. REPORTS TAB -->
+        <div id="tab-reports" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow text-center">
+                <h3 class="font-bold text-gray-500">අද දින මුළු විකුණුම්</h3>
+                <p id="today-sales" class="text-3xl font-extrabold text-green-600 my-2">Rs. 0.00</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow">
+                <h3 class="font-bold text-gray-700 mb-2">විකුණුම් ඉතිහාසය</h3>
+                <div id="sales-history" class="space-y-2 text-sm max-h-60 overflow-y-auto"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- SUPABASE SERVER SETUP ---
+        const SUPABASE_URL = "https://vpkwgxrabixokeqppduh.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwa3dneHJhYml4b2tlcXBwZHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDAyMzUsImV4cCI6MjEwMDIxNjIzNX0.QA9_iwMeVgWFlx8Np-o1pzSATDKj1JHBmf7FnuzEwBw";
+        let db = null;
+
+        if (SUPABASE_URL !== "YOUR_SUPABASE_URL_HERE") {
+            db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         }
-    })();
 
-    // 3. Form එකෙන් Data Insert කරන Function එක
-    async function addProduct(event) {
-      event.preventDefault(); // Form reload වීම නවත්වයි
+        let products = JSON.parse(localStorage.getItem('pos_products')) || [];
+        let salesHistory = JSON.parse(localStorage.getItem('pos_sales')) || [];
+        let cart = [];
+        let printCharacteristic = null;
+        let html5QrCode = null;
 
-      const name = document.getElementById('p_name').value;
-      const price = parseFloat(document.getElementById('p_price').value);
-      const qty = parseInt(document.getElementById('p_qty').value);
-      
-      const saveBtn = document.getElementById('save-btn');
-      const statusMsg = document.getElementById('statusMsg');
+        async function syncWithServer() {
+            if (!db) return;
+            try {
+                const { data: serverProducts, error } = await db.from('products').select('*');
+                if (serverProducts && serverProducts.length > 0) {
+                    products = serverProducts.map(p => ({
+                        ...p,
+                        stock: p.stock !== undefined ? p.stock : (p.qty || 0)
+                    }));
+                    localStorage.setItem('pos_products', JSON.stringify(products));
+                    updateProductDropdown();
+                    renderInventory();
+                }
+            } catch (err) {
+                console.log("Server sync error:", err);
+            }
+        }
 
-      // Loading state
-      saveBtn.disabled = true;
-      saveBtn.innerText = "Saving Data...";
-      statusMsg.classList.add('hidden');
+        async function saveData() {
+            localStorage.setItem('pos_products', JSON.stringify(products));
+            localStorage.setItem('pos_sales', JSON.stringify(salesHistory));
+            
+            updateProductDropdown();
+            renderInventory();
+            renderReports();
 
-      try {
-        // Supabase 'products' table එකට Data insert කිරීම
-        const { data, error } = await supabaseClient
-          .from('products')
-          .insert([
-            { name: name, price: price, qty: qty }
-          ]);
+            // Cloud Server Sync (Both stock and qty map to avoid schema errors)
+            if (db) {
+                try {
+                    const dbProducts = products.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        price: p.price,
+                        stock: p.stock,
+                        qty: p.stock, // Sent to both columns for compatibility
+                        code: p.code || null
+                    }));
+                    const { error } = await db.from('products').upsert(dbProducts);
+                    if (error) {
+                        alert("⚠️ Data Save වුණේ නැහැ!\nError: " + error.message);
+                    }
+                } catch(e) {
+                    alert("⚠️ Server Connection Error: " + e.message);
+                }
+            }
+        }
 
-        if (error) throw error;
+        function switchTab(tab) {
+            ['billing', 'stock', 'reports'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`btn-${t}`).className = "flex-1 py-2 text-center font-semibold text-gray-600";
+            });
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`btn-${tab}`).className = "flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg";
+        }
 
-        // Success Response
-        alert("🎉 Product එක සාර්ථකව Save වුණා!");
-        showStatus("Data added successfully!", "text-green-600");
-        document.getElementById('productForm').reset(); // Form එක clear කිරීම
+        // --- Bluetooth Printer Setup ---
+        async function connectBluetoothPrinter() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb']
+                });
+                const server = await device.gatt.connect();
+                const services = await server.getPrimaryServices();
+                for (let service of services) {
+                    const characteristics = await service.getCharacteristics();
+                    if (characteristics.length > 0) {
+                        printCharacteristic = characteristics[0];
+                        alert("Bluetooth Printer එක සාර්ථකව Connect විය!");
+                        break;
+                    }
+                }
+            } catch (error) {
+                alert("Printer connect කිරීම අසාර්ථක විය: " + error.message);
+            }
+        }
 
-      } catch (error) {
-        // Error Handling
-        console.error("Insert Error:", error);
-        alert("❌ Data Save වුණේ නැහැ!\nError: " + error.message);
-        showStatus("Error: " + error.message, "text-red-600");
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerText = "Save to Database";
-      }
-    }
+        async function printText(text) {
+            if (!printCharacteristic) {
+                alert("Bluetooth Printer එකක් Connect කර නොමැත.");
+                return false;
+            }
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text + "\n\n\n");
+            await printCharacteristic.writeValue(data);
+            return true;
+        }
 
-    // Helper Function for status text
-    function showStatus(msg, textClass) {
-      const statusMsg = document.getElementById('statusMsg');
-      statusMsg.innerText = msg;
-      statusMsg.className = `mt-4 text-center font-medium text-sm ${textClass}`;
-      statusMsg.classList.remove('hidden');
-    }
-  </script>
+        // --- Live Camera Barcode Scanner ---
+        function startScanner() {
+            const readerDiv = document.getElementById('reader');
+            readerDiv.classList.remove('hidden');
 
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => initCamera()).catch(() => initCamera());
+            } else {
+                initCamera();
+            }
+        }
+
+        function initCamera() {
+            html5QrCode = new Html5Qrcode("reader");
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 150 }
+                },
+                (decodedText) => {
+                    const found = products.find(p => p.code === decodedText);
+                    if (found) {
+                        addToCart(found);
+                        alert(found.name + ' බිලට එකතු විය!');
+                    } else {
+                        alert('මෙම Barcode එකට අදාළ භාණ්ඩයක් Stock එකේ නැත: ' + decodedText);
+                    }
+                    
+                    html5QrCode.stop().then(() => {
+                        document.getElementById('reader').classList.add('hidden');
+                    });
+                },
+                (errorMessage) => {}
+            ).catch(err => {
+                alert("කැමරාව Open කිරීමට නොහැකි විය: " + err);
+            });
+        }
+
+        // --- Stock Management ---
+        async function saveProduct() {
+            const name = document.getElementById('inv-name').value.trim();
+            const price = parseFloat(document.getElementById('inv-price').value);
+            const stock = parseInt(document.getElementById('inv-stock').value);
+            const code = document.getElementById('inv-code').value.trim();
+
+            if(!name || isNaN(price) || isNaN(stock)) {
+                alert('කරුණාකර සියලු විස්තර නිවැරදිව ඇතුළත් කරන්න!');
+                return;
+            }
+
+            const existingIndex = products.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+            if(existingIndex > -1) {
+                products[existingIndex].stock += stock;
+                products[existingIndex].price = price;
+                if(code) products[existingIndex].code = code;
+            } else {
+                products.push({ id: Date.now(), name, price, stock, code });
+            }
+
+            await saveData();
+
+            document.getElementById('inv-name').value = '';
+            document.getElementById('inv-price').value = '';
+            document.getElementById('inv-stock').value = '';
+            document.getElementById('inv-code').value = '';
+            alert('Stock එක සාර්ථකව Save විය!');
+        }
+
+        function renderInventory() {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = '';
+            products.forEach(p => {
+                const currentStock = p.stock !== undefined ? p.stock : (p.qty || 0);
+                list.innerHTML += `
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <div>
+                            <p class="font-bold text-gray-800">${p.name}</p>
+                            <p class="text-xs text-gray-500">මිල: Rs. ${p.price} | Stock: <span class="${currentStock < 5 ? 'text-red-500 font-bold' : 'text-green-600'}">${currentStock}</span> | Barcode: ${p.code || 'නැත'}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="adjustStock(${p.id}, 1)" class="px-2 py-1 bg-green-100 text-green-700 rounded font-bold">+1</button>
+                            <button onclick="deleteProduct(${p.id})" class="text-red-500 text-xs font-bold">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function adjustStock(id, amount) {
+            const prod = products.find(p => p.id === id);
+            if(prod) {
+                prod.stock = (prod.stock || 0) + amount;
+                saveData();
+            }
+        }
+
+        async function deleteProduct(id) {
+            if(confirm('මෙම භාණ්ඩය ඉවත් කරන්නද?')) {
+                products = products.filter(p => p.id !== id);
+                saveData();
+                if (db) {
+                    try { await db.from('products').delete().eq('id', id); } catch(e){}
+                }
+            }
+        }
+
+        function updateProductDropdown() {
+            const select = document.getElementById('product-select');
+            select.innerHTML = '<option value="">භාණ්ඩයක් තෝරන්න...</option>';
+            products.forEach(p => {
+                const currentStock = p.stock !== undefined ? p.stock : (p.qty || 0);
+                select.innerHTML += `<option value="${p.id}">${p.name} (Stock: ${currentStock}) - Rs. ${p.price}</option>`;
+            });
+        }
+
+        // --- Billing Logic ---
+        function addToCartFromSelect() {
+            const id = document.getElementById('product-select').value;
+            if(!id) return;
+            const product = products.find(p => p.id == id);
+            addToCart(product);
+        }
+
+        function addToCart(product) {
+            const currentStock = product.stock !== undefined ? product.stock : (product.qty || 0);
+            if(currentStock <= 0) {
+                alert('මෙම භාණ්ඩයේ Stock ඉවරයි!');
+                return;
+            }
+            const existing = cart.find(item => item.id === product.id);
+            if(existing) {
+                if(existing.qty + 1 > currentStock) {
+                    alert('Stock එකේ ඇති ප්‍රමාණයට වඩා ඇතුළත් කළ නොහැක!');
+                    return;
+                }
+                existing.qty += 1;
+            } else {
+                cart.push({ ...product, qty: 1 });
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const tbody = document.getElementById('cart-items');
+            tbody.innerHTML = '';
+            let total = 0;
+
+            cart.forEach((item, index) => {
+                total += item.price * item.qty;
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="py-2">${item.name}</td>
+                        <td class="py-2">${item.price * item.qty}</td>
+                        <td class="py-2">
+                            <button onclick="changeQty(${index}, -1)" class="px-2 bg-gray-200 rounded">-</button>
+                            <span class="px-1">${item.qty}</span>
+                            <button onclick="changeQty(${index}, 1)" class="px-2 bg-gray-200 rounded">+</button>
+                        </td>
+                        <td class="py-2"><button onclick="removeFromCart(${index})" class="text-red-500 font-bold">x</button></td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('grand-total').innerText = 'Rs. ' + total.toFixed(2);
+        }
+
+        function changeQty(index, delta) {
+            const item = cart[index];
+            const prod = products.find(p => p.id === item.id);
+            const currentStock = prod.stock !== undefined ? prod.stock : (prod.qty || 0);
+            if(delta > 0 && item.qty + 1 > currentStock) {
+                alert('Stock එකේ ඇති ප්‍රමාණයට වඩා ඇතුළත් කළ නොහැක!');
+                return;
+            }
+            item.qty += delta;
+            if(item.qty <= 0) cart.splice(index, 1);
+            renderCart();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            renderCart();
+        }
+
+        async function checkoutAndPrint() {
+            if(cart.length === 0) {
+                alert('බිල්පත හිස්ය!');
+                return;
+            }
+
+            let total = 0;
+            let receiptText = "=== SMART SHOP POS ===\n";
+            receiptText += "Date: " + new Date().toLocaleDateString() + "\n";
+            receiptText += "------------------------------\n";
+
+            cart.forEach(item => {
+                const itemTotal = item.price * item.qty;
+                total += itemTotal;
+                receiptText += `${item.name} x ${item.qty} = Rs.${itemTotal}\n`;
+
+                const prod = products.find(p => p.id === item.id);
+                if(prod) prod.stock -= item.qty;
+            });
+
+            receiptText += "------------------------------\n";
+            receiptText += `TOTAL: Rs.${total.toFixed(2)}\n`;
+            receiptText += "Thank You! Come Again.\n";
+
+            const saleData = {
+                id: Date.now(),
+                date: new Date().toLocaleString(),
+                total: total,
+                items: [...cart]
+            };
+
+            salesHistory.push(saleData);
+
+            await saveData();
+
+            if (db) {
+                try { await db.from('sales').insert([saleData]); } catch(e){}
+            }
+
+            await printText(receiptText);
+
+            alert('බිල අවසන් විය! Stock යාවත්කාලීන කරන ලදී.');
+            cart = [];
+            renderCart();
+        }
+
+        // --- Reports Logic ---
+        function renderReports() {
+            const todayStr = new Date().toLocaleDateString();
+            let todayTotal = 0;
+            const historyDiv = document.getElementById('sales-history');
+            historyDiv.innerHTML = '';
+
+            salesHistory.forEach(sale => {
+                if(sale.date.includes(todayStr)) {
+                    todayTotal += sale.total;
+                }
+                historyDiv.innerHTML += `
+                    <div class="border-b pb-1 flex justify-between">
+                        <span class="text-xs text-gray-500">${sale.date}</span>
+                        <span class="font-bold text-gray-700">Rs. ${sale.total.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('today-sales').innerText = 'Rs. ' + todayTotal.toFixed(2);
+        }
+
+        // Initial setup
+        syncWithServer();
+        updateProductDropdown();
+        renderInventory();
+        renderReports();
+    </script>
 </body>
 </html>
