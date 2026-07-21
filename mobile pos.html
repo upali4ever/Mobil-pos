@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile POS & Stock System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTML5 QR Code Scanner CDN -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="bg-gray-100 font-sans pb-20">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 text-center text-xl font-bold shadow-md flex justify-between items-center">
+        <span>🏪 Smart Shop POS</span>
+        <button onclick="connectBluetoothPrinter()" class="bg-blue-800 text-xs px-3 py-1 rounded-full border border-white">
+            🛜 Printer Connect
+        </button>
+    </header>
+
+    <!-- Main Container -->
+    <div class="max-w-md mx-auto p-4">
+
+        <!-- Navigation Tabs -->
+        <div class="flex bg-white rounded-lg shadow mb-4 p-1 text-xs sm:text-sm">
+            <button onclick="switchTab('billing')" id="btn-billing" class="flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg">බිල් කිරීම</button>
+            <button onclick="switchTab('stock')" id="btn-stock" class="flex-1 py-2 text-center font-semibold text-gray-600">Stock පාලනය</button>
+            <button onclick="switchTab('reports')" id="btn-reports" class="flex-1 py-2 text-center font-semibold text-gray-600">වාර්තා</button>
+        </div>
+
+        <!-- 1. BILLING TAB -->
+        <div id="tab-billing" class="space-y-4">
+            <button onclick="startScanner()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700">
+                📷 Barcode Scan කරන්න
+            </button>
+            
+            <!-- Live Camera Display Container -->
+            <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner"></div>
+
+            <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                <h3 class="font-bold text-gray-700">භාණ්ඩයක් තෝරන්න</h3>
+                <select id="product-select" class="w-full p-2 border rounded-lg">
+                    <option value="">භාණ්ඩයක් තෝරන්න...</option>
+                </select>
+                <button onclick="addToCartFromSelect()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">බිලට එකතු කරන්න</button>
+            </div>
+
+            <!-- Cart Table -->
+            <div class="bg-white p-4 rounded-xl shadow">
+                <h3 class="font-bold text-gray-700 mb-2">බිල්පත් විස්තර</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b text-sm text-gray-600">
+                                <th class="py-2">භාණ්ඩය</th>
+                                <th class="py-2">මිල</th>
+                                <th class="py-2">ප්‍රමාණය</th>
+                                <th class="py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cart-items" class="text-sm"></tbody>
+                    </table>
+                </div>
+                <div class="mt-4 border-t pt-3 flex justify-between text-lg font-bold">
+                    <span>මුළු මුදල:</span>
+                    <span id="grand-total" class="text-blue-600">Rs. 0.00</span>
+                </div>
+                <button onclick="checkoutAndPrint()" class="w-full mt-4 bg-orange-500 text-white py-3 rounded-xl font-bold shadow hover:bg-orange-600">
+                    🖨️ Checkout & Print Bill
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. STOCK MANAGEMENT TAB -->
+        <div id="tab-stock" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                <h3 class="font-bold text-gray-700">අලුත් බඩුවක් / Stock එකතු කරන්න</h3>
+                <input type="text" id="inv-name" placeholder="භාණ්ඩයේ නම" class="w-full p-2 border rounded-lg">
+                <div class="flex gap-2">
+                    <input type="number" id="inv-price" placeholder="මිල (Rs.)" class="w-1/2 p-2 border rounded-lg">
+                    <input type="number" id="inv-stock" placeholder="තොග ප්‍රමාණය" class="w-1/2 p-2 border rounded-lg">
+                </div>
+                <input type="text" id="inv-code" placeholder="Barcode අංකය (optional)" class="w-full p-2 border rounded-lg">
+                <button onclick="saveProduct()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">Stock එකට එකතු කරන්න</button>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow">
+                <h3 class="font-bold text-gray-700 mb-2">පවතින Stock ලැයිස්තුව</h3>
+                <div id="inventory-list" class="space-y-3 text-sm"></div>
+            </div>
+        </div>
+
+        <!-- 3. REPORTS TAB -->
+        <div id="tab-reports" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow text-center">
+                <h3 class="font-bold text-gray-500">අද දින මුළු විකුණුම්</h3>
+                <p id="today-sales" class="text-3xl font-extrabold text-green-600 my-2">Rs. 0.00</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow">
+                <h3 class="font-bold text-gray-700 mb-2">විකුණුම් ඉතිහාසය</h3>
+                <div id="sales-history" class="space-y-2 text-sm max-h-60 overflow-y-auto"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let products = JSON.parse(localStorage.getItem('pos_products')) || [];
+        let salesHistory = JSON.parse(localStorage.getItem('pos_sales')) || [];
+        let cart = [];
+        let printCharacteristic = null;
+        let html5QrCode = null;
+
+        function saveData() {
+            localStorage.setItem('pos_products', JSON.stringify(products));
+            localStorage.setItem('pos_sales', JSON.stringify(salesHistory));
+            updateProductDropdown();
+            renderInventory();
+            renderReports();
+        }
+
+        function switchTab(tab) {
+            ['billing', 'stock', 'reports'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`btn-${t}`).className = "flex-1 py-2 text-center font-semibold text-gray-600";
+            });
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`btn-${tab}`).className = "flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg";
+        }
+
+        // --- Bluetooth Printer Setup ---
+        async function connectBluetoothPrinter() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb']
+                });
+                const server = await device.gatt.connect();
+                const services = await server.getPrimaryServices();
+                for (let service of services) {
+                    const characteristics = await service.getCharacteristics();
+                    if (characteristics.length > 0) {
+                        printCharacteristic = characteristics[0];
+                        alert("Bluetooth Printer එක සාර්ථකව Connect විය!");
+                        break;
+                    }
+                }
+            } catch (error) {
+                alert("Printer connect කිරීම අසාර්ථක විය: " + error.message);
+            }
+        }
+
+        async function printText(text) {
+            if (!printCharacteristic) {
+                alert("Bluetooth Printer එකක් Connect කර නොමැත.");
+                return false;
+            }
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text + "\n\n\n");
+            await printCharacteristic.writeValue(data);
+            return true;
+        }
+
+        // --- Live Camera Barcode Scanner ---
+        function startScanner() {
+            const readerDiv = document.getElementById('reader');
+            readerDiv.classList.remove('hidden');
+
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => initCamera()).catch(() => initCamera());
+            } else {
+                initCamera();
+            }
+        }
+
+        function initCamera() {
+            html5QrCode = new Html5Qrcode("reader");
+            
+            // Back Camera එක කෙලින්ම Open කිරීම
+            html5QrCode.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 150 }
+                },
+                (decodedText) => {
+                    const found = products.find(p => p.code === decodedText);
+                    if (found) {
+                        addToCart(found);
+                        alert(found.name + ' බිලට එකතු විය!');
+                    } else {
+                        alert('මෙම Barcode එකට අදාළ භාණ්ඩයක් Stock එකේ නැත: ' + decodedText);
+                    }
+                    
+                    // Scan වුණු පසු කැමරාව Close කිරීම
+                    html5QrCode.stop().then(() => {
+                        document.getElementById('reader').classList.add('hidden');
+                    });
+                },
+                (errorMessage) => {
+                    // Scanning errors ignore
+                }
+            ).catch(err => {
+                alert("කැමරාව Open කිරීමට නොහැකි විය. Permission ලබාදී ඇත්දැයි පරීක්ෂා කරන්න: " + err);
+            });
+        }
+
+        // --- Stock Management ---
+        function saveProduct() {
+            const name = document.getElementById('inv-name').value;
+            const price = parseFloat(document.getElementById('inv-price').value);
+            const stock = parseInt(document.getElementById('inv-stock').value);
+            const code = document.getElementById('inv-code').value;
+
+            if(!name || isNaN(price) || isNaN(stock)) {
+                alert('කරුණාකර සියලු විස්තර නිවැරදිව ඇතුළත් කරන්න!');
+                return;
+            }
+
+            const existingIndex = products.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+            if(existingIndex > -1) {
+                products[existingIndex].stock += stock;
+                products[existingIndex].price = price;
+                if(code) products[existingIndex].code = code;
+            } else {
+                products.push({ id: Date.now(), name, price, stock, code });
+            }
+
+            saveData();
+            document.getElementById('inv-name').value = '';
+            document.getElementById('inv-price').value = '';
+            document.getElementById('inv-stock').value = '';
+            document.getElementById('inv-code').value = '';
+            alert('Stock එක යාවත්කාලීන විය!');
+        }
+
+        function renderInventory() {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = '';
+            products.forEach(p => {
+                list.innerHTML += `
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <div>
+                            <p class="font-bold text-gray-800">${p.name}</p>
+                            <p class="text-xs text-gray-500">මිල: Rs. ${p.price} | Stock: <span class="${p.stock < 5 ? 'text-red-500 font-bold' : 'text-green-600'}">${p.stock}</span> | Barcode: ${p.code || 'නැත'}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="adjustStock(${p.id}, 1)" class="px-2 py-1 bg-green-100 text-green-700 rounded font-bold">+1</button>
+                            <button onclick="deleteProduct(${p.id})" class="text-red-500 text-xs font-bold">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function adjustStock(id, amount) {
+            const prod = products.find(p => p.id === id);
+            if(prod) {
+                prod.stock += amount;
+                saveData();
+            }
+        }
+
+        function deleteProduct(id) {
+            if(confirm('මෙම භාණ්ඩය ඉවත් කරන්නද?')) {
+                products = products.filter(p => p.id !== id);
+                saveData();
+            }
+        }
+
+        function updateProductDropdown() {
+            const select = document.getElementById('product-select');
+            select.innerHTML = '<option value="">භාණ්ඩයක් තෝරන්න...</option>';
+            products.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">${p.name} (Stock: ${p.stock}) - Rs. ${p.price}</option>`;
+            });
+        }
+
+        // --- Billing Logic ---
+        function addToCartFromSelect() {
+            const id = document.getElementById('product-select').value;
+            if(!id) return;
+            const product = products.find(p => p.id == id);
+            addToCart(product);
+        }
+
+        function addToCart(product) {
+            if(product.stock <= 0) {
+                alert('මෙම භාණ්ඩයේ Stock ඉවරයි!');
+                return;
+            }
+            const existing = cart.find(item => item.id === product.id);
+            if(existing) {
+                if(existing.qty + 1 > product.stock) {
+                    alert('Stock එකේ ඇති ප්‍රමාණයට වඩා ඇතුළත් කළ නොහැක!');
+                    return;
+                }
+                existing.qty += 1;
+            } else {
+                cart.push({ ...product, qty: 1 });
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const tbody = document.getElementById('cart-items');
+            tbody.innerHTML = '';
+            let total = 0;
+
+            cart.forEach((item, index) => {
+                total += item.price * item.qty;
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="py-2">${item.name}</td>
+                        <td class="py-2">${item.price * item.qty}</td>
+                        <td class="py-2">
+                            <button onclick="changeQty(${index}, -1)" class="px-2 bg-gray-200 rounded">-</button>
+                            <span class="px-1">${item.qty}</span>
+                            <button onclick="changeQty(${index}, 1)" class="px-2 bg-gray-200 rounded">+</button>
+                        </td>
+                        <td class="py-2"><button onclick="removeFromCart(${index})" class="text-red-500 font-bold">x</button></td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('grand-total').innerText = 'Rs. ' + total.toFixed(2);
+        }
+
+        function changeQty(index, delta) {
+            const item = cart[index];
+            const prod = products.find(p => p.id === item.id);
+            if(delta > 0 && item.qty + 1 > prod.stock) {
+                alert('Stock එකේ ඇති ප්‍රමාණයට වඩා ඇතුළත් කළ නොහැක!');
+                return;
+            }
+            item.qty += delta;
+            if(item.qty <= 0) cart.splice(index, 1);
+            renderCart();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            renderCart();
+        }
+
+        async function checkoutAndPrint() {
+            if(cart.length === 0) {
+                alert('බිල්පත හිස්ය!');
+                return;
+            }
+
+            let total = 0;
+            let receiptText = "=== SMART SHOP POS ===\n";
+            receiptText += "Date: " + new Date().toLocaleDateString() + "\n";
+            receiptText += "------------------------------\n";
+
+            cart.forEach(item => {
+                const itemTotal = item.price * item.qty;
+                total += itemTotal;
+                receiptText += `${item.name} x ${item.qty} = Rs.${itemTotal}\n`;
+
+                const prod = products.find(p => p.id === item.id);
+                if(prod) prod.stock -= item.qty;
+            });
+
+            receiptText += "------------------------------\n";
+            receiptText += `TOTAL: Rs.${total.toFixed(2)}\n`;
+            receiptText += "Thank You! Come Again.\n";
+
+            salesHistory.push({
+                id: Date.now(),
+                date: new Date().toLocaleString(),
+                total: total,
+                items: [...cart]
+            });
+
+            saveData();
+
+            await printText(receiptText);
+
+            alert('බිල අවසන් විය! Stock යාවත්කාලීන කරන ලදී.');
+            cart = [];
+            renderCart();
+        }
+
+        // --- Reports Logic ---
+        function renderReports() {
+            const todayStr = new Date().toLocaleDateString();
+            let todayTotal = 0;
+            const historyDiv = document.getElementById('sales-history');
+            historyDiv.innerHTML = '';
+
+            salesHistory.forEach(sale => {
+                if(sale.date.includes(todayStr)) {
+                    todayTotal += sale.total;
+                }
+                historyDiv.innerHTML += `
+                    <div class="border-b pb-1 flex justify-between">
+                        <span class="text-xs text-gray-500">${sale.date}</span>
+                        <span class="font-bold text-gray-700">Rs. ${sale.total.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('today-sales').innerText = 'Rs. ' + todayTotal.toFixed(2);
+        }
+
+        // Initial setup
+        updateProductDropdown();
+        renderInventory();
+        renderReports();
+    </script>
+</body>
+</html>
