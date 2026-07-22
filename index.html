@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile POS & Credit System</title>
+    <title>Mobile POS, Profit & Credit System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- HTML5 QR Code Scanner CDN -->
@@ -116,9 +116,10 @@
 
                     <input type="text" id="inv-name" placeholder="භාණ්ඩයේ නම" class="w-full p-2 border rounded-lg text-sm">
                     <div class="flex gap-2">
-                        <input type="number" id="inv-price" placeholder="මිල (Rs.)" class="w-1/2 p-2 border rounded-lg text-sm">
-                        <input type="number" id="inv-stock" placeholder="තොග ප්‍රමාණය" class="w-1/2 p-2 border rounded-lg text-sm">
+                        <input type="number" id="inv-cost" placeholder="ගත් මිල (Cost Rs.)" class="w-1/2 p-2 border rounded-lg text-sm">
+                        <input type="number" id="inv-price" placeholder="විකුණුම් මිල (Rs.)" class="w-1/2 p-2 border rounded-lg text-sm">
                     </div>
+                    <input type="number" id="inv-stock" placeholder="තොග ප්‍රමාණය" class="w-full p-2 border rounded-lg text-sm">
                     <input type="text" id="inv-code" placeholder="Barcode අංකය" class="w-full p-2 border rounded-lg text-sm">
                     <button onclick="saveProduct()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold text-sm">Stock එකට එකතු කරන්න</button>
                 </div>
@@ -131,7 +132,6 @@
 
             <!-- 3. CREDIT TAB (ණය පොත) -->
             <div id="tab-credit" class="hidden space-y-4">
-                <!-- Direct Credit Entry -->
                 <div class="bg-white p-4 rounded-xl shadow space-y-3">
                     <h3 class="font-bold text-gray-700 text-sm">📖 අලුත් ණයක් එකතු කරන්න</h3>
                     <input type="text" id="credit-cust-name" placeholder="පාරිභෝගිකයාගේ නම" class="w-full p-2 border rounded-lg text-sm">
@@ -140,7 +140,6 @@
                     <button onclick="addManualCredit()" class="w-full bg-amber-600 text-white py-2 rounded-lg font-semibold text-sm hover:bg-amber-700">ණය පොතට එකතු කරන්න</button>
                 </div>
 
-                <!-- Credit List -->
                 <div class="bg-white p-4 rounded-xl shadow">
                     <h3 class="font-bold text-gray-700 mb-2 text-sm">ණය ලැයිස්තුව (Customer Credit Ledger)</h3>
                     <div id="credit-list" class="space-y-3 text-sm"></div>
@@ -150,8 +149,19 @@
             <!-- 4. REPORTS TAB -->
             <div id="tab-reports" class="hidden space-y-4">
                 <div class="bg-white p-4 rounded-xl shadow text-center space-y-3">
-                    <h3 class="font-bold text-gray-500 text-sm">අද දින මුළු විකුණුම්</h3>
-                    <p id="today-sales" class="text-3xl font-extrabold text-green-600 my-2">Rs. 0.00</p>
+                    <h3 class="font-bold text-gray-500 text-sm">අද දින වාර්තාව</h3>
+                    
+                    <div class="grid grid-cols-2 gap-2 my-2">
+                        <div class="bg-blue-50 p-2 rounded-lg border border-blue-100">
+                            <p class="text-xs text-gray-500 font-semibold">මුළු විකුණුම්</p>
+                            <p id="today-sales" class="text-xl font-black text-blue-600">Rs. 0.00</p>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded-lg border border-green-100">
+                            <p class="text-xs text-gray-500 font-semibold">ශුද්ධ ලාභය</p>
+                            <p id="today-profit" class="text-xl font-black text-green-600">Rs. 0.00</p>
+                        </div>
+                    </div>
+
                     <button onclick="resetTodaySales()" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg text-xs shadow">
                         🔄 අද දින විකුණුම් Reset කරන්න
                     </button>
@@ -246,7 +256,7 @@
 
                     <!-- Customer Info for Credit Billing -->
                     <div id="credit-customer-box" class="hidden space-y-1 bg-amber-50 p-2 rounded border border-amber-200">
-                        <input type="text" id="bill-cust-name" placeholder="ණයගැතියාගේ නම *" class="w-full p-1 border rounded text-xs font-normal">
+                        <input type="text" id="bill-cust-name" placeholder="ණය ලබාගන්නාගේ නම *" class="w-full p-1 border rounded text-xs font-normal">
                         <input type="text" id="bill-cust-phone" placeholder="දුරකථන අංකය" class="w-full p-1 border rounded text-xs font-normal">
                     </div>
 
@@ -489,6 +499,7 @@
         // Inventory Logic
         function saveProduct() {
             const name = document.getElementById('inv-name').value.trim();
+            const cost = parseFloat(document.getElementById('inv-cost').value) || 0;
             const price = parseFloat(document.getElementById('inv-price').value);
             const stock = parseInt(document.getElementById('inv-stock').value);
             const code = document.getElementById('inv-code').value.trim();
@@ -500,14 +511,16 @@
 
             if(existingIndex > -1) {
                 products[existingIndex].stock += stock;
+                products[existingIndex].cost = cost;
                 products[existingIndex].price = price;
                 if(code) products[existingIndex].code = code;
             } else {
-                products.push({ id: Date.now(), name, price, stock, code });
+                products.push({ id: Date.now(), name, cost, price, stock, code });
             }
 
             saveData();
             document.getElementById('inv-name').value = '';
+            document.getElementById('inv-cost').value = '';
             document.getElementById('inv-price').value = '';
             document.getElementById('inv-stock').value = '';
             document.getElementById('inv-code').value = '';
@@ -523,7 +536,7 @@
                     <div class="flex justify-between items-center border-b pb-2">
                         <div>
                             <p class="font-bold text-gray-800">${p.name}</p>
-                            <p class="text-xs text-gray-500">Rs. ${p.price} | තොගය: <span class="${color}">${p.stock}</span></p>
+                            <p class="text-xs text-gray-500">ගත්: Rs.${p.cost || 0} | විකුණුම්: Rs.${p.price} | තොගය: <span class="${color}">${p.stock}</span></p>
                         </div>
                         <div class="flex gap-2">
                             <button onclick="adjustStock(${p.id}, 1)" class="px-2 py-1 bg-green-100 text-green-700 rounded font-bold">+1</button>
@@ -682,10 +695,16 @@
                 custName = document.getElementById('bill-cust-name').value.trim();
                 custPhone = document.getElementById('bill-cust-phone').value.trim();
                 if(!custName) { alert('ණය ලබාගන්නා අයගේ නම ඇතුළත් කරන්න!'); return; }
-                
-                // Add to credit ledger
                 addCreditRecord(custName, custPhone, netTotal, `Bill Date: ${new Date().toLocaleDateString()}`);
             }
+
+            // Calculate Total Profit
+            let totalProfit = 0;
+            cart.forEach(item => {
+                let itemCost = item.cost || 0;
+                totalProfit += (item.price - itemCost) * item.qty;
+            });
+            totalProfit = Math.max(0, totalProfit - discount);
 
             closeBillPreview();
             let balance = payMethod === 'CASH' ? cashGiven - netTotal : 0;
@@ -718,6 +737,7 @@
                 subtotal: currentGrandTotal,
                 discount: discount,
                 total: netTotal,
+                profit: totalProfit,
                 method: payMethod,
                 customer: custName,
                 items: [...cart]
@@ -817,26 +837,37 @@
             }
         }
 
-        // Reports
+        // Reports Logic
         function renderReports() {
             const todayStr = new Date().toLocaleDateString();
-            let todayTotal = 0;
+            let todaySales = 0;
+            let todayProfit = 0;
+            
             const historyDiv = document.getElementById('sales-history');
             historyDiv.innerHTML = '';
 
             salesHistory = salesHistory || [];
             salesHistory.forEach(sale => {
-                if(sale.date.includes(todayStr)) todayTotal += sale.total;
+                if(sale.date.includes(todayStr)) {
+                    todaySales += sale.total;
+                    todayProfit += (sale.profit || 0);
+                }
+                
                 historyDiv.innerHTML += `
                     <div class="border-b pb-1 flex justify-between text-xs">
                         <div>
                             <span class="text-gray-500">${sale.date}</span>
                             <span class="ml-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-1 rounded">${sale.method || 'CASH'}</span>
                         </div>
-                        <span class="font-bold text-gray-700">Rs. ${sale.total.toFixed(2)}</span>
+                        <div class="text-right">
+                            <span class="font-bold text-gray-700">Rs. ${sale.total.toFixed(2)}</span>
+                            <span class="text-[10px] text-green-600 block">ලාභය: Rs. ${(sale.profit || 0).toFixed(2)}</span>
+                        </div>
                     </div>`;
             });
-            document.getElementById('today-sales').innerText = 'Rs. ' + todayTotal.toFixed(2);
+
+            document.getElementById('today-sales').innerText = 'Rs. ' + todaySales.toFixed(2);
+            document.getElementById('today-profit').innerText = 'Rs. ' + todayProfit.toFixed(2);
         }
 
         function resetTodaySales() {
