@@ -301,11 +301,12 @@
 
     <!-- JavaScript Logic -->
     <script>
+        // 🚨 කරුණාකර මෙතනට ඔයාගේ Supabase URL එක සහ Anon Key එක දාන්න!
         const SUPABASE_URL = "https://vpkwgxrabixokeqppduh.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwa3dneHJhYml4b2tlcXBwZHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDAyMzUsImV4cCI6MjEwMDIxNjIzNX0.QA9_iwMeVgWFlx8Np-o1pzSATDKj1JHBmf7FnuzEwBw";
         let db = null;
 
-        if (SUPABASE_URL !== "YOUR_SUPABASE_URL_HERE") {
+        if (SUPABASE_URL !== "https://your-project-id.supabase.co") {
             db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         }
 
@@ -319,11 +320,12 @@
         let html5QrCode = null;
         let currentGrandTotal = 0;
 
-        window.onload = function() {
+        window.onload = async function() {
             if(localStorage.getItem('pos_logged') === 'true') {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
                 loadShopDetailsToUI();
+                await loadDataFromSupabase();
                 updateProductDropdown();
                 renderInventory();
                 renderReports();
@@ -340,6 +342,7 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
                 loadShopDetailsToUI();
+                loadDataFromSupabase();
                 updateProductDropdown();
                 renderInventory();
                 renderReports();
@@ -421,16 +424,53 @@
             }
         }
 
+        // --- SUPABASE & LOCAL STORAGE SAVE FUNCTION ---
         async function saveData() {
+            // LocalStorage Save
             localStorage.setItem('pos_products', JSON.stringify(products));
             localStorage.setItem('pos_sales', JSON.stringify(salesHistory));
             localStorage.setItem('pos_credits', JSON.stringify(creditLedger));
             
+            // UI Sync
             updateProductDropdown();
             renderInventory();
             renderReports();
             renderCreditList();
             checkLowStock();
+
+            // Supabase Cloud Sync
+            if (db) {
+                try {
+                    if (products.length > 0) await db.from('products').upsert(products);
+                    if (salesHistory.length > 0) await db.from('sales').upsert(salesHistory);
+                    if (creditLedger.length > 0) await db.from('credits').upsert(creditLedger);
+                    console.log("Supabase Cloud Sync Successful!");
+                } catch (err) {
+                    console.error("Supabase Sync Error:", err);
+                }
+            }
+        }
+
+        // --- LOAD DATA FROM SUPABASE ON APP START ---
+        async function loadDataFromSupabase() {
+            if (!db) return;
+            try {
+                let { data: prodData } = await db.from('products').select('*');
+                if (prodData && prodData.length > 0) products = prodData;
+
+                let { data: salesData } = await db.from('sales').select('*');
+                if (salesData && salesData.length > 0) salesHistory = salesData;
+
+                let { data: creditData } = await db.from('credits').select('*');
+                if (creditData && creditData.length > 0) creditLedger = creditData;
+
+                // Sync with UI & LocalStorage
+                localStorage.setItem('pos_products', JSON.stringify(products));
+                localStorage.setItem('pos_sales', JSON.stringify(salesHistory));
+                localStorage.setItem('pos_credits', JSON.stringify(creditLedger));
+            } catch (err) {
+                console.error("Error loading data from Supabase:", err);
+            }
         }
 
         function switchTab(tab) {
@@ -563,8 +603,14 @@
             if(p) { p.stock += amt; if(p.stock < 0) p.stock = 0; saveData(); }
         }
 
-        function deleteProduct(id) {
-            if(confirm('ඉවත් කරන්නද?')) { products = products.filter(p => p.id !== id); saveData(); }
+        async function deleteProduct(id) {
+            if(confirm('ඉවත් කරන්නද?')) { 
+                products = products.filter(p => p.id !== id); 
+                if (db) {
+                    try { await db.from('products').delete().eq('id', id); } catch(e){}
+                }
+                saveData(); 
+            }
         }
 
         function updateProductDropdown() {
@@ -847,9 +893,12 @@
             }
         }
 
-        function deleteCreditCustomer(id) {
+        async function deleteCreditCustomer(id) {
             if(confirm('මොහුව ණය ලැයිස්තුවෙන් ඉවත් කරන්නද?')) {
                 creditLedger = creditLedger.filter(c => c.id !== id);
+                if (db) {
+                    try { await db.from('credits').delete().eq('id', id); } catch(e){}
+                }
                 saveData();
             }
         }
