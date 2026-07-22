@@ -54,9 +54,10 @@
             </div>
 
             <!-- Navigation Tabs -->
-            <div class="flex bg-white rounded-lg shadow p-1 text-xs sm:text-sm">
+            <div class="flex bg-white rounded-lg shadow p-1 text-xs gap-1">
                 <button onclick="switchTab('billing')" id="btn-billing" class="flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg">බිල් කිරීම</button>
-                <button onclick="switchTab('stock')" id="btn-stock" class="flex-1 py-2 text-center font-semibold text-gray-600">Stock & Settings</button>
+                <button onclick="switchTab('stock')" id="btn-stock" class="flex-1 py-2 text-center font-semibold text-gray-600">Stock</button>
+                <button onclick="switchTab('settings')" id="btn-settings" class="flex-1 py-2 text-center font-semibold text-gray-600">Settings</button>
                 <button onclick="switchTab('reports')" id="btn-reports" class="flex-1 py-2 text-center font-semibold text-gray-600">වාර්තා</button>
             </div>
 
@@ -103,27 +104,8 @@
                 </div>
             </div>
 
-            <!-- 2. STOCK & SETTINGS TAB -->
+            <!-- 2. STOCK TAB -->
             <div id="tab-stock" class="hidden space-y-4">
-                <!-- Shop Details Configuration -->
-                <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 text-sm">⚙️ ආයතනික තොරතුරු (Receipt Details)</h3>
-                    <input type="text" id="shop-name-input" placeholder="කඩේ නම (Shop Name)" class="w-full p-2 border rounded-lg text-sm">
-                    <input type="text" id="shop-phone-input" placeholder="දුරකථන අංකය (Phone Number)" class="w-full p-2 border rounded-lg text-sm">
-                    <button onclick="saveShopDetails()" class="w-full bg-gray-800 text-white py-2 rounded-lg font-semibold text-sm">විස්තර Save කරන්න</button>
-                </div>
-
-                <!-- Backup & Restore -->
-                <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 text-sm">💾 Backup & Restore (දත්ත ආරක්ෂාව)</h3>
-                    <div class="flex gap-2">
-                        <button onclick="downloadBackup()" class="w-1/2 bg-teal-600 text-white py-2 rounded-lg font-semibold text-xs">Backup Download</button>
-                        <label class="w-1/2 bg-amber-600 text-white py-2 rounded-lg font-semibold text-xs text-center cursor-pointer">
-                            Restore Data <input type="file" id="restore-file" onchange="restoreBackup(event)" class="hidden" accept=".json">
-                        </label>
-                    </div>
-                </div>
-
                 <!-- Add Product -->
                 <div class="bg-white p-4 rounded-xl shadow space-y-3">
                     <h3 class="font-bold text-gray-700 text-sm">අලුත් බඩුවක් / Stock එකතු කරන්න</h3>
@@ -148,7 +130,29 @@
                 </div>
             </div>
 
-            <!-- 3. REPORTS TAB -->
+            <!-- 3. SETTINGS TAB -->
+            <div id="tab-settings" class="hidden space-y-4">
+                <!-- Shop Details Configuration -->
+                <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                    <h3 class="font-bold text-gray-700 text-sm">⚙️ ආයතනික තොරතුරු (Receipt Details)</h3>
+                    <input type="text" id="shop-name-input" placeholder="කඩේ නම (Shop Name)" class="w-full p-2 border rounded-lg text-sm">
+                    <input type="text" id="shop-phone-input" placeholder="දුරකථන අංකය (Phone Number)" class="w-full p-2 border rounded-lg text-sm">
+                    <button onclick="saveShopDetails()" class="w-full bg-gray-800 text-white py-2 rounded-lg font-semibold text-sm">විස්තර Save කරන්න</button>
+                </div>
+
+                <!-- Backup & Restore -->
+                <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                    <h3 class="font-bold text-gray-700 text-sm">💾 Backup & Restore (දත්ත ආරක්ෂාව)</h3>
+                    <div class="flex gap-2">
+                        <button onclick="downloadBackup()" class="w-1/2 bg-teal-600 text-white py-2 rounded-lg font-semibold text-xs">Backup Download</button>
+                        <label class="w-1/2 bg-amber-600 text-white py-2 rounded-lg font-semibold text-xs text-center cursor-pointer flex justify-center items-center">
+                            Restore Data <input type="file" id="restore-file" onchange="restoreBackup(event)" class="hidden" accept=".json">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. REPORTS TAB -->
             <div id="tab-reports" class="hidden space-y-4">
                 <div class="bg-white p-4 rounded-xl shadow text-center">
                     <h3 class="font-bold text-gray-500 text-sm">අද දින මුළු විකුණුම්</h3>
@@ -248,6 +252,10 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
                 loadShopDetailsToUI();
+                updateProductDropdown();
+                renderInventory();
+                renderReports();
+                checkLowStock();
             }
         }
 
@@ -259,6 +267,10 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
                 loadShopDetailsToUI();
+                updateProductDropdown();
+                renderInventory();
+                renderReports();
+                checkLowStock();
             } else {
                 alert('Username හෝ Password වැරදිය!');
             }
@@ -343,7 +355,7 @@
         }
 
         function switchTab(tab) {
-            ['billing', 'stock', 'reports'].forEach(t => {
+            ['billing', 'stock', 'settings', 'reports'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
                 document.getElementById(`btn-${t}`).className = "flex-1 py-2 text-center font-semibold text-gray-600";
             });
@@ -660,13 +672,6 @@
                 `;
             });
             document.getElementById('today-sales').innerText = 'Rs. ' + todayTotal.toFixed(2);
-        }
-
-        if(localStorage.getItem('pos_logged') === 'true') {
-            updateProductDropdown();
-            renderInventory();
-            renderReports();
-            checkLowStock();
         }
     </script>
 </body>
