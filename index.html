@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="si">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile POS & Stock System</title>
+    <title>Mobile POS & Credit System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- HTML5 QR Code Scanner CDN -->
@@ -35,7 +34,7 @@
         </div>
     </div>
 
-    <!-- MAIN APP WRAPPER (Hidden until login) -->
+    <!-- MAIN APP WRAPPER -->
     <div id="main-app" class="hidden">
         <!-- Header -->
         <header class="bg-blue-600 text-white p-4 text-center text-xl font-bold shadow-md flex justify-between items-center">
@@ -50,16 +49,17 @@
         <div class="max-w-md mx-auto p-4 space-y-4">
 
             <!-- Low Stock Warning Banner -->
-            <div id="low-stock-alert" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-lg text-xs font-semibold shadow-sm flex items-center justify-between">
+            <div id="low-stock-alert" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-lg text-xs font-semibold shadow-sm">
                 <span id="low-stock-text">⚠️ අවවාදයයි: සමහර භාණ්ඩවල Stock අවසන් වෙමින් පවතී!</span>
             </div>
 
             <!-- Navigation Tabs -->
-            <div class="flex bg-white rounded-lg shadow p-1 text-xs gap-1">
-                <button onclick="switchTab('billing')" id="btn-billing" class="flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg">බිල් කිරීම</button>
-                <button onclick="switchTab('stock')" id="btn-stock" class="flex-1 py-2 text-center font-semibold text-gray-600">Stock</button>
-                <button onclick="switchTab('settings')" id="btn-settings" class="flex-1 py-2 text-center font-semibold text-gray-600">Settings</button>
-                <button onclick="switchTab('reports')" id="btn-reports" class="flex-1 py-2 text-center font-semibold text-gray-600">වාර්තා</button>
+            <div class="flex bg-white rounded-lg shadow p-1 text-xs gap-1 overflow-x-auto">
+                <button onclick="switchTab('billing')" id="btn-billing" class="flex-1 py-2 px-1 text-center font-semibold bg-blue-500 text-white rounded-lg">බිල් කිරීම</button>
+                <button onclick="switchTab('stock')" id="btn-stock" class="flex-1 py-2 px-1 text-center font-semibold text-gray-600">Stock</button>
+                <button onclick="switchTab('credit')" id="btn-credit" class="flex-1 py-2 px-1 text-center font-semibold text-gray-600">ණය පොත</button>
+                <button onclick="switchTab('reports')" id="btn-reports" class="flex-1 py-2 px-1 text-center font-semibold text-gray-600">වාර්තා</button>
+                <button onclick="switchTab('settings')" id="btn-settings" class="flex-1 py-2 px-1 text-center font-semibold text-gray-600">Settings</button>
             </div>
 
             <!-- 1. BILLING TAB -->
@@ -68,7 +68,6 @@
                     📷 Barcode Scan කර බිල් කරන්න
                 </button>
                 
-                <!-- Live Camera Container -->
                 <div id="reader" class="hidden w-full bg-black rounded-xl overflow-hidden shadow-inner"></div>
 
                 <div class="bg-white p-4 rounded-xl shadow space-y-3">
@@ -100,14 +99,13 @@
                         <span id="grand-total" class="text-blue-600">Rs. 0.00</span>
                     </div>
                     <button onclick="openBillPreview()" class="w-full mt-4 bg-orange-500 text-white py-3 rounded-xl font-bold shadow hover:bg-orange-600">
-                        👁️ Thermal Bill Preview බලන්න
+                        👁️ Bill Preview & Pay
                     </button>
                 </div>
             </div>
 
             <!-- 2. STOCK TAB -->
             <div id="tab-stock" class="hidden space-y-4">
-                <!-- Add Product -->
                 <div class="bg-white p-4 rounded-xl shadow space-y-3">
                     <h3 class="font-bold text-gray-700 text-sm">අලුත් බඩුවක් / Stock එකතු කරන්න</h3>
                     
@@ -131,42 +129,21 @@
                 </div>
             </div>
 
-            <!-- 3. SETTINGS TAB -->
-            <div id="tab-settings" class="hidden space-y-4">
-                <!-- Shop Details Configuration -->
+            <!-- 3. CREDIT TAB (ණය පොත) -->
+            <div id="tab-credit" class="hidden space-y-4">
+                <!-- Direct Credit Entry -->
                 <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 text-sm">⚙️ ආයතනික තොරතුරු (Receipt Details)</h3>
-                    <input type="text" id="shop-name-input" placeholder="කඩේ නම (Shop Name)" class="w-full p-2 border rounded-lg text-sm">
-                    <input type="text" id="shop-phone-input" placeholder="දුරකථන අංකය (Phone Number)" class="w-full p-2 border rounded-lg text-sm">
-                    <button onclick="saveShopDetails()" class="w-full bg-gray-800 text-white py-2 rounded-lg font-semibold text-sm">විස්තර Save කරන්න</button>
+                    <h3 class="font-bold text-gray-700 text-sm">📖 අලුත් ණයක් එකතු කරන්න</h3>
+                    <input type="text" id="credit-cust-name" placeholder="පාරිභෝගිකයාගේ නම" class="w-full p-2 border rounded-lg text-sm">
+                    <input type="text" id="credit-cust-phone" placeholder="දුරකථන අංකය" class="w-full p-2 border rounded-lg text-sm">
+                    <input type="number" id="credit-amount" placeholder="ණය මුදල (Rs.)" class="w-full p-2 border rounded-lg text-sm">
+                    <button onclick="addManualCredit()" class="w-full bg-amber-600 text-white py-2 rounded-lg font-semibold text-sm hover:bg-amber-700">ණය පොතට එකතු කරන්න</button>
                 </div>
 
-                <!-- Change Password -->
-                <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 text-sm">🔒 මුුරපදය වෙනස් කිරීම (Change Password)</h3>
-                    <input type="password" id="old-pass" placeholder="වත්මන් මුරපදය (Old Password)" class="w-full p-2 border rounded-lg text-sm">
-                    <input type="password" id="new-pass" placeholder="අලුත් මුරපදය (New Password)" class="w-full p-2 border rounded-lg text-sm">
-                    <button onclick="changePassword()" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold text-sm">මුරපදය වෙනස් කරන්න</button>
-                </div>
-
-                <!-- Backup & Restore -->
-                <div class="bg-white p-4 rounded-xl shadow space-y-3">
-                    <h3 class="font-bold text-gray-700 text-sm">💾 Backup & Restore (දත්ත ආරක්ෂාව)</h3>
-                    <div class="flex gap-2">
-                        <button onclick="downloadBackup()" class="w-1/2 bg-teal-600 text-white py-2 rounded-lg font-semibold text-xs">Backup Download</button>
-                        <label class="w-1/2 bg-amber-600 text-white py-2 rounded-lg font-semibold text-xs text-center cursor-pointer flex justify-center items-center">
-                            Restore Data <input type="file" id="restore-file" onchange="restoreBackup(event)" class="hidden" accept=".json">
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Full System Reset -->
-                <div class="bg-red-50 border border-red-200 p-4 rounded-xl shadow space-y-2">
-                    <h3 class="font-bold text-red-700 text-sm">🚨 Danger Zone</h3>
-                    <p class="text-xs text-red-500">System එකේ ඇති සියලුම දත්ත (Stock, Sales, Password) මකා දමා මුල සිට ආරම්භ කිරීමට පහත බටන් එක ඔබන්න.</p>
-                    <button onclick="fullSystemReset()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-bold text-xs shadow">
-                        ⚠️ Full System Reset (සියලු දත්ත මකා දමන්න)
-                    </button>
+                <!-- Credit List -->
+                <div class="bg-white p-4 rounded-xl shadow">
+                    <h3 class="font-bold text-gray-700 mb-2 text-sm">ණය ලැයිස්තුව (Customer Credit Ledger)</h3>
+                    <div id="credit-list" class="space-y-3 text-sm"></div>
                 </div>
             </div>
 
@@ -175,8 +152,6 @@
                 <div class="bg-white p-4 rounded-xl shadow text-center space-y-3">
                     <h3 class="font-bold text-gray-500 text-sm">අද දින මුළු විකුණුම්</h3>
                     <p id="today-sales" class="text-3xl font-extrabold text-green-600 my-2">Rs. 0.00</p>
-                    
-                    <!-- Reset Daily Sales Button -->
                     <button onclick="resetTodaySales()" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg text-xs shadow">
                         🔄 අද දින විකුණුම් Reset කරන්න
                     </button>
@@ -188,17 +163,49 @@
                 </div>
             </div>
 
+            <!-- 5. SETTINGS TAB -->
+            <div id="tab-settings" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                    <h3 class="font-bold text-gray-700 text-sm">⚙️ ආයතනික තොරතුරු (Receipt Details)</h3>
+                    <input type="text" id="shop-name-input" placeholder="කඩේ නම (Shop Name)" class="w-full p-2 border rounded-lg text-sm">
+                    <input type="text" id="shop-phone-input" placeholder="දුරකථන අංකය (Phone Number)" class="w-full p-2 border rounded-lg text-sm">
+                    <button onclick="saveShopDetails()" class="w-full bg-gray-800 text-white py-2 rounded-lg font-semibold text-sm">විස්තර Save කරන්න</button>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                    <h3 class="font-bold text-gray-700 text-sm">🔒 මුුරපදය වෙනස් කිරීම</h3>
+                    <input type="password" id="old-pass" placeholder="වත්මන් මුරපදය" class="w-full p-2 border rounded-lg text-sm">
+                    <input type="password" id="new-pass" placeholder="අලුත් මුරපදය" class="w-full p-2 border rounded-lg text-sm">
+                    <button onclick="changePassword()" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold text-sm">මුරපදය වෙනස් කරන්න</button>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow space-y-3">
+                    <h3 class="font-bold text-gray-700 text-sm">💾 Backup & Restore</h3>
+                    <div class="flex gap-2">
+                        <button onclick="downloadBackup()" class="w-1/2 bg-teal-600 text-white py-2 rounded-lg font-semibold text-xs">Backup Download</button>
+                        <label class="w-1/2 bg-amber-600 text-white py-2 rounded-lg font-semibold text-xs text-center cursor-pointer flex justify-center items-center">
+                            Restore Data <input type="file" id="restore-file" onchange="restoreBackup(event)" class="hidden" accept=".json">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="bg-red-50 border border-red-200 p-4 rounded-xl shadow space-y-2">
+                    <h3 class="font-bold text-red-700 text-sm">🚨 Danger Zone</h3>
+                    <button onclick="fullSystemReset()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-bold text-xs shadow">
+                        ⚠️ Full System Reset (සියලු දත්ත මකා දමන්න)
+                    </button>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <!-- THERMAL RECEIPT MODAL -->
+    <!-- RECEIPT & PAYMENT PREVIEW MODAL -->
     <div id="bill-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex justify-center items-center p-4 z-50">
         <div class="bg-gray-200 w-full max-w-sm rounded-2xl p-4 shadow-2xl space-y-3">
             
-            <!-- Real Thermal Paper Container -->
             <div class="bg-white p-4 shadow-md font-mono text-xs text-gray-800 space-y-2 border-t-4 border-gray-800 rounded-t">
                 
-                <!-- Receipt Header -->
                 <div class="text-center space-y-1">
                     <h2 id="receipt-shop-name" class="text-base font-bold tracking-wider">SMART SHOP</h2>
                     <p id="receipt-shop-phone" class="text-[11px] text-gray-600">Tel: 077-1234567</p>
@@ -206,20 +213,44 @@
                     <p class="border-b border-dashed border-gray-400 my-1"></p>
                 </div>
                 
-                <!-- Items List -->
-                <div id="preview-content" class="space-y-1 max-h-48 overflow-y-auto"></div>
+                <div id="preview-content" class="space-y-1 max-h-36 overflow-y-auto"></div>
 
                 <p class="border-b border-dashed border-gray-400 my-1"></p>
 
-                <!-- Calculations -->
-                <div class="space-y-1 font-bold">
-                    <div class="flex justify-between text-sm">
-                        <span>TOTAL:</span>
+                <!-- Dynamic Calculations -->
+                <div class="space-y-1.5 font-bold">
+                    <div class="flex justify-between text-xs">
+                        <span>SUBTOTAL:</span>
+                        <span id="preview-subtotal">Rs. 0.00</span>
+                    </div>
+
+                    <div class="flex justify-between items-center font-normal">
+                        <span>DISCOUNT (Rs.):</span>
+                        <input type="number" id="discount-amount" oninput="calculateBalance()" value="0" class="w-20 p-1 text-right border rounded bg-gray-50 font-bold font-mono text-xs">
+                    </div>
+
+                    <div class="flex justify-between text-sm text-blue-600 border-t border-b border-dashed py-1">
+                        <span>NET TOTAL:</span>
                         <span id="preview-total">Rs. 0.00</span>
                     </div>
 
-                    <!-- Cash Input Block -->
-                    <div class="flex justify-between items-center pt-1 font-normal">
+                    <div class="flex justify-between items-center font-normal pt-1">
+                        <span>PAY METHOD:</span>
+                        <select id="payment-method" onchange="toggleCreditFields()" class="p-1 border rounded bg-gray-50 text-xs font-bold">
+                            <option value="CASH">CASH</option>
+                            <option value="CARD">CARD</option>
+                            <option value="ONLINE">ONLINE / QR</option>
+                            <option value="CREDIT">CREDIT (ණය)</option>
+                        </select>
+                    </div>
+
+                    <!-- Customer Info for Credit Billing -->
+                    <div id="credit-customer-box" class="hidden space-y-1 bg-amber-50 p-2 rounded border border-amber-200">
+                        <input type="text" id="bill-cust-name" placeholder="ණයගැතියාගේ නම *" class="w-full p-1 border rounded text-xs font-normal">
+                        <input type="text" id="bill-cust-phone" placeholder="දුරකථන අංකය" class="w-full p-1 border rounded text-xs font-normal">
+                    </div>
+
+                    <div id="cash-given-box" class="flex justify-between items-center font-normal">
                         <span>CASH GIVEN:</span>
                         <div class="flex items-center gap-1">
                             <span>Rs.</span>
@@ -227,18 +258,15 @@
                         </div>
                     </div>
 
-                    <div class="flex justify-between text-sm text-green-700 pt-1">
+                    <div id="change-box" class="flex justify-between text-sm text-green-700">
                         <span>CHANGE:</span>
                         <span id="preview-balance">Rs. 0.00</span>
                     </div>
                 </div>
 
                 <p class="border-b border-dashed border-gray-400 my-1"></p>
-
-                <!-- Receipt Footer -->
                 <div class="text-center text-[10px] text-gray-500 pt-1">
                     <p>Thank You! Come Again.</p>
-                    <p>*** Powered by Smart POS ***</p>
                 </div>
 
             </div>
@@ -264,6 +292,7 @@
 
         let products = JSON.parse(localStorage.getItem('pos_products')) || [];
         let salesHistory = JSON.parse(localStorage.getItem('pos_sales')) || [];
+        let creditLedger = JSON.parse(localStorage.getItem('pos_credits')) || [];
         let shopDetails = JSON.parse(localStorage.getItem('pos_shop_details')) || { name: "SMART SHOP", phone: "077-1234567" };
         let storedPassword = localStorage.getItem('pos_password') || '123';
         let cart = [];
@@ -271,7 +300,6 @@
         let html5QrCode = null;
         let currentGrandTotal = 0;
 
-        // Check Login Session
         window.onload = function() {
             if(localStorage.getItem('pos_logged') === 'true') {
                 document.getElementById('login-screen').classList.add('hidden');
@@ -280,6 +308,7 @@
                 updateProductDropdown();
                 renderInventory();
                 renderReports();
+                renderCreditList();
                 checkLowStock();
             }
         }
@@ -295,6 +324,7 @@
                 updateProductDropdown();
                 renderInventory();
                 renderReports();
+                renderCreditList();
                 checkLowStock();
             } else {
                 alert('Username හෝ Password වැරදිය!');
@@ -316,10 +346,7 @@
         function saveShopDetails() {
             const name = document.getElementById('shop-name-input').value.trim();
             const phone = document.getElementById('shop-phone-input').value.trim();
-            if(!name) {
-                alert('කඩේ නම ඇතුළත් කරන්න!');
-                return;
-            }
+            if(!name) { alert('කඩේ නම ඇතුළත් කරන්න!'); return; }
             shopDetails = { name, phone };
             localStorage.setItem('pos_shop_details', JSON.stringify(shopDetails));
             loadShopDetailsToUI();
@@ -329,38 +356,22 @@
         function changePassword() {
             const oldPass = document.getElementById('old-pass').value;
             const newPass = document.getElementById('new-pass').value;
-
-            if(oldPass !== storedPassword) {
-                alert('වත්මන් මුරපදය (Old Password) වැරදිය!');
-                return;
-            }
-            if(!newPass || newPass.length < 2) {
-                alert('කරුණාකර වලංගු නව මුරපදයක් ඇතුළත් කරන්න!');
-                return;
-            }
-
+            if(oldPass !== storedPassword) { alert('වත්මන් මුරපදය වැරදිය!'); return; }
+            if(!newPass || newPass.length < 2) { alert('වලංගු නව මුරපදයක් දෙන්න!'); return; }
             storedPassword = newPass;
             localStorage.setItem('pos_password', storedPassword);
             document.getElementById('old-pass').value = '';
             document.getElementById('new-pass').value = '';
-            alert('මුරපදය සාර්ථකව වෙනස් කරන ලදී!');
+            alert('මුරපදය වෙනස් විය!');
         }
 
-        // Backup & Restore Functions
         function downloadBackup() {
-            const backupData = {
-                products: products,
-                salesHistory: salesHistory,
-                shopDetails: shopDetails,
-                password: storedPassword
-            };
+            const backupData = { products, salesHistory, creditLedger, shopDetails, password: storedPassword };
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", "smart_pos_backup_" + new Date().toISOString().slice(0,10) + ".json");
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", "smart_pos_backup_" + new Date().toISOString().slice(0,10) + ".json");
+            dl.click();
         }
 
         function restoreBackup(event) {
@@ -372,29 +383,21 @@
                     const parsed = JSON.parse(e.target.result);
                     if(parsed.products) products = parsed.products;
                     if(parsed.salesHistory) salesHistory = parsed.salesHistory;
-                    if(parsed.password) {
-                        storedPassword = parsed.password;
-                        localStorage.setItem('pos_password', storedPassword);
-                    }
-                    if(parsed.shopDetails) {
-                        shopDetails = parsed.shopDetails;
-                        localStorage.setItem('pos_shop_details', JSON.stringify(shopDetails));
-                    }
+                    if(parsed.creditLedger) creditLedger = parsed.creditLedger;
+                    if(parsed.password) { storedPassword = parsed.password; localStorage.setItem('pos_password', storedPassword); }
+                    if(parsed.shopDetails) { shopDetails = parsed.shopDetails; localStorage.setItem('pos_shop_details', JSON.stringify(shopDetails)); }
                     saveData();
                     loadShopDetailsToUI();
-                    alert('දත්ත සාර්ථකව Restore කරගන්න ලදී!');
-                } catch(err) {
-                    alert('Backup File එක වැරදිය!');
-                }
+                    alert('දත්ත Restore විය!');
+                } catch(err) { alert('Backup File එක වැරදිය!'); }
             };
             reader.readAsText(file);
         }
 
-        // FULL SYSTEM RESET FUNCTION
         function fullSystemReset() {
-            if (confirm("⚠️ අවධානයට: සියලුම Stock, Sales History, Settings සහ Password මකා දැමෙනු ඇත. ඔබට පද්ධතිය මුල සිට Reset කිරීමට විශ්වාසද?")) {
+            if (confirm("⚠️ සියලුම Stock, Sales, Credit සහ Password මුල සිට Reset කිරීමට විශ්වාසද?")) {
                 localStorage.clear();
-                alert("System එක සාර්ථකව Reset විය! පද්ධතිය නැවත Load වේ.");
+                alert("System එක Reset විය!");
                 location.reload();
             }
         }
@@ -402,40 +405,35 @@
         async function saveData() {
             localStorage.setItem('pos_products', JSON.stringify(products));
             localStorage.setItem('pos_sales', JSON.stringify(salesHistory));
+            localStorage.setItem('pos_credits', JSON.stringify(creditLedger));
             
             updateProductDropdown();
             renderInventory();
             renderReports();
+            renderCreditList();
             checkLowStock();
-
-            if (db) {
-                try { await db.from('products').upsert(products); } catch(e) {}
-            }
         }
 
         function switchTab(tab) {
-            ['billing', 'stock', 'settings', 'reports'].forEach(t => {
+            ['billing', 'stock', 'credit', 'reports', 'settings'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
-                document.getElementById(`btn-${t}`).className = "flex-1 py-2 text-center font-semibold text-gray-600";
+                document.getElementById(`btn-${t}`).className = "flex-1 py-2 px-1 text-center font-semibold text-gray-600";
             });
             document.getElementById(`tab-${tab}`).classList.remove('hidden');
-            document.getElementById(`btn-${tab}`).className = "flex-1 py-2 text-center font-semibold bg-blue-500 text-white rounded-lg";
+            document.getElementById(`btn-${tab}`).className = "flex-1 py-2 px-1 text-center font-semibold bg-blue-500 text-white rounded-lg";
         }
 
         function checkLowStock() {
             const lowStockAlert = document.getElementById('low-stock-alert');
             const lowStockText = document.getElementById('low-stock-text');
             const lowItems = products.filter(p => p.stock <= 5);
-
             if (lowItems.length > 0) {
-                const names = lowItems.map(i => `${i.name} (${i.stock})`).join(', ');
-                lowStockText.innerText = `⚠️ අඩු තොග ඇති භාණ්ඩ: ${names}`;
+                lowStockText.innerText = `⚠️ අඩු තොග: ${lowItems.map(i => `${i.name} (${i.stock})`).join(', ')}`;
                 lowStockAlert.classList.remove('hidden');
-            } else {
-                lowStockAlert.classList.add('hidden');
-            }
+            } else { lowStockAlert.classList.add('hidden'); }
         }
 
+        // Bluetooth & Camera Functions
         async function connectBluetoothPrinter() {
             try {
                 const device = await navigator.bluetooth.requestDevice({
@@ -452,29 +450,21 @@
                         break;
                     }
                 }
-            } catch (error) {
-                alert("Printer connect අසාර්ථකයි: " + error.message);
-            }
+            } catch (error) { alert("Printer connect අසාර්ථකයි: " + error.message); }
         }
 
         async function printText(text) {
             if (!printCharacteristic) return false;
             const encoder = new TextEncoder();
-            const data = encoder.encode(text + "\n\n\n");
-            await printCharacteristic.writeValue(data);
+            await printCharacteristic.writeValue(encoder.encode(text + "\n\n\n"));
             return true;
         }
 
         function startScanner(mode) {
             const readerId = mode === 'stock' ? 'stock-reader' : 'reader';
-            const readerDiv = document.getElementById(readerId);
-            readerDiv.classList.remove('hidden');
-
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => initCamera(mode)).catch(() => initCamera(mode));
-            } else {
-                initCamera(mode);
-            }
+            document.getElementById(readerId).classList.remove('hidden');
+            if (html5QrCode) html5QrCode.stop().then(() => initCamera(mode)).catch(() => initCamera(mode));
+            else initCamera(mode);
         }
 
         function initCamera(mode) {
@@ -490,28 +480,20 @@
                         else alert('භාණ්ඩයක් හමු නොවීය: ' + decodedText);
                     } else if (mode === 'stock') {
                         document.getElementById('inv-code').value = decodedText;
-                        const existingProd = products.find(p => p.code === decodedText);
-                        if(existingProd) {
-                            document.getElementById('inv-name').value = existingProd.name;
-                            document.getElementById('inv-price').value = existingProd.price;
-                        }
                     }
                     html5QrCode.stop().then(() => document.getElementById(readerId).classList.add('hidden'));
-                },
-                (err) => {}
+                }, () => {}
             ).catch(err => alert("කැමරා දෝෂයකි: " + err));
         }
 
+        // Inventory Logic
         function saveProduct() {
             const name = document.getElementById('inv-name').value.trim();
             const price = parseFloat(document.getElementById('inv-price').value);
             const stock = parseInt(document.getElementById('inv-stock').value);
             const code = document.getElementById('inv-code').value.trim();
 
-            if(!name || isNaN(price) || isNaN(stock)) {
-                alert('විස්තර නිවැරදිව පුරවන්න!');
-                return;
-            }
+            if(!name || isNaN(price) || isNaN(stock)) { alert('විස්තර නිවැරදිව පුරවන්න!'); return; }
 
             let existingIndex = code ? products.findIndex(p => p.code === code) : -1;
             if(existingIndex === -1) existingIndex = products.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
@@ -520,7 +502,6 @@
                 products[existingIndex].stock += stock;
                 products[existingIndex].price = price;
                 if(code) products[existingIndex].code = code;
-                products[existingIndex].name = name;
             } else {
                 products.push({ id: Date.now(), name, price, stock, code });
             }
@@ -530,33 +511,31 @@
             document.getElementById('inv-price').value = '';
             document.getElementById('inv-stock').value = '';
             document.getElementById('inv-code').value = '';
-            alert('සාර්ථකව එකතු විය!');
+            alert('Stock එකට එකතු විය!');
         }
 
         function renderInventory() {
             const list = document.getElementById('inventory-list');
             list.innerHTML = '';
             products.forEach(p => {
-                let stockStatusColor = p.stock <= 0 ? 'text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded' : 'text-green-600';
+                let color = p.stock <= 0 ? 'text-red-600 font-bold' : 'text-green-600';
                 list.innerHTML += `
                     <div class="flex justify-between items-center border-b pb-2">
                         <div>
                             <p class="font-bold text-gray-800">${p.name}</p>
-                            ${p.code ? `<span class="text-xs text-blue-500">Barcode: ${p.code}</span>` : ''}
-                            <p class="text-xs text-gray-500">Rs. ${p.price} | තොගය: <span class="${stockStatusColor}">${p.stock}</span></p>
+                            <p class="text-xs text-gray-500">Rs. ${p.price} | තොගය: <span class="${color}">${p.stock}</span></p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex gap-2">
                             <button onclick="adjustStock(${p.id}, 1)" class="px-2 py-1 bg-green-100 text-green-700 rounded font-bold">+1</button>
                             <button onclick="deleteProduct(${p.id})" class="text-red-500 text-xs font-bold">Delete</button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
         }
 
-        function adjustStock(id, amount) {
-            const prod = products.find(p => p.id === id);
-            if(prod) { prod.stock += amount; if(prod.stock < 0) prod.stock = 0; saveData(); }
+        function adjustStock(id, amt) {
+            const p = products.find(i => i.id === id);
+            if(p) { p.stock += amt; if(p.stock < 0) p.stock = 0; saveData(); }
         }
 
         function deleteProduct(id) {
@@ -567,14 +546,14 @@
             const select = document.getElementById('product-select');
             select.innerHTML = '<option value="">භාණ්ඩයක් තෝරන්න...</option>';
             products.forEach(p => {
-                select.innerHTML += `<option value="${p.id}" ${p.stock <= 0 ? 'disabled class="text-gray-400"' : ''}>${p.name} (${p.stock}) - Rs. ${p.price}</option>`;
+                select.innerHTML += `<option value="${p.id}" ${p.stock <= 0 ? 'disabled' : ''}>${p.name} (${p.stock}) - Rs. ${p.price}</option>`;
             });
         }
 
+        // Billing & Cart
         function addToCartFromSelect() {
             const id = document.getElementById('product-select').value;
-            if(!id) return;
-            addToCart(products.find(p => p.id == id));
+            if(id) addToCart(products.find(p => p.id == id));
         }
 
         function addToCart(product) {
@@ -583,9 +562,7 @@
             if(existing) {
                 if(existing.qty + 1 > product.stock) { alert('Stock සීමාව ඉක්මවා ඇත!'); return; }
                 existing.qty += 1;
-            } else {
-                cart.push({ ...product, qty: 1 });
-            }
+            } else { cart.push({ ...product, qty: 1 }); }
             renderCart();
         }
 
@@ -606,8 +583,7 @@
                             <button onclick="changeQty(${index}, 1)" class="px-2 bg-gray-200 rounded">+</button>
                         </td>
                         <td class="py-2"><button onclick="removeFromCart(${index})" class="text-red-500 font-bold">x</button></td>
-                    </tr>
-                `;
+                    </tr>`;
             });
             document.getElementById('grand-total').innerText = 'Rs. ' + total.toFixed(2);
         }
@@ -623,9 +599,9 @@
 
         function removeFromCart(index) { cart.splice(index, 1); renderCart(); }
 
+        // Bill Preview & Calculation Logic
         function openBillPreview() {
             if(cart.length === 0) { alert('බිල්පත හිස්ය!'); return; }
-
             document.getElementById('receipt-shop-name').innerText = shopDetails.name;
             document.getElementById('receipt-shop-phone').innerText = "Tel: " + shopDetails.phone;
             document.getElementById('receipt-date').innerText = "DATE: " + new Date().toLocaleString();
@@ -641,19 +617,43 @@
                     <div class="flex justify-between">
                         <span>${item.name} x${item.qty}</span>
                         <span>${itemTotal.toFixed(2)}</span>
-                    </div>
-                `;
+                    </div>`;
             });
 
-            document.getElementById('preview-total').innerText = 'Rs. ' + currentGrandTotal.toFixed(2);
+            document.getElementById('discount-amount').value = 0;
             document.getElementById('cash-given').value = '';
-            document.getElementById('preview-balance').innerText = 'Rs. 0.00';
+            document.getElementById('payment-method').value = 'CASH';
+            toggleCreditFields();
+            calculateBalance();
             document.getElementById('bill-modal').classList.remove('hidden');
         }
 
+        function toggleCreditFields() {
+            const method = document.getElementById('payment-method').value;
+            const creditBox = document.getElementById('credit-customer-box');
+            const cashBox = document.getElementById('cash-given-box');
+            const changeBox = document.getElementById('change-box');
+
+            if(method === 'CREDIT') {
+                creditBox.classList.remove('hidden');
+                cashBox.classList.add('hidden');
+                changeBox.classList.add('hidden');
+            } else {
+                creditBox.classList.add('hidden');
+                cashBox.classList.remove('hidden');
+                changeBox.classList.remove('hidden');
+            }
+        }
+
         function calculateBalance() {
+            const discount = parseFloat(document.getElementById('discount-amount').value) || 0;
+            const netTotal = Math.max(0, currentGrandTotal - discount);
+
+            document.getElementById('preview-subtotal').innerText = 'Rs. ' + currentGrandTotal.toFixed(2);
+            document.getElementById('preview-total').innerText = 'Rs. ' + netTotal.toFixed(2);
+
             const cashGiven = parseFloat(document.getElementById('cash-given').value) || 0;
-            const balance = cashGiven - currentGrandTotal;
+            const balance = cashGiven - netTotal;
             const balanceElement = document.getElementById('preview-balance');
 
             if (balance >= 0) {
@@ -668,14 +668,32 @@
         function closeBillPreview() { document.getElementById('bill-modal').classList.add('hidden'); }
 
         async function confirmAndPrint() {
+            const discount = parseFloat(document.getElementById('discount-amount').value) || 0;
+            const netTotal = Math.max(0, currentGrandTotal - discount);
+            const payMethod = document.getElementById('payment-method').value;
             const cashGiven = parseFloat(document.getElementById('cash-given').value) || 0;
-            if(cashGiven < currentGrandTotal) { alert('දුන් මුදල ප්‍රමාණවත් නැත!'); return; }
+
+            if(payMethod !== 'CREDIT' && cashGiven < netTotal && payMethod === 'CASH') {
+                alert('දුන් මුදල ප්‍රමාණවත් නැත!'); return;
+            }
+
+            let custName = "", custPhone = "";
+            if(payMethod === 'CREDIT') {
+                custName = document.getElementById('bill-cust-name').value.trim();
+                custPhone = document.getElementById('bill-cust-phone').value.trim();
+                if(!custName) { alert('ණය ලබාගන්නා අයගේ නම ඇතුළත් කරන්න!'); return; }
+                
+                // Add to credit ledger
+                addCreditRecord(custName, custPhone, netTotal, `Bill Date: ${new Date().toLocaleDateString()}`);
+            }
 
             closeBillPreview();
-            let balance = cashGiven - currentGrandTotal;
+            let balance = payMethod === 'CASH' ? cashGiven - netTotal : 0;
 
             let receiptText = `${shopDetails.name}\nTel: ${shopDetails.phone}\n`;
             receiptText += "Date: " + new Date().toLocaleString() + "\n";
+            receiptText += `PAYMENT: ${payMethod}\n`;
+            if(payMethod === 'CREDIT') receiptText += `CUSTOMER: ${custName}\n`;
             receiptText += "------------------------------\n";
 
             cart.forEach(item => {
@@ -685,35 +703,121 @@
             });
 
             receiptText += "------------------------------\n";
-            receiptText += `TOTAL: Rs.${currentGrandTotal.toFixed(2)}\n`;
-            receiptText += `CASH : Rs.${cashGiven.toFixed(2)}\n`;
-            receiptText += `CHANGE: Rs.${balance.toFixed(2)}\n`;
+            if(discount > 0) receiptText += `SUBTOTAL: Rs.${currentGrandTotal.toFixed(2)}\nDISCOUNT: Rs.${discount.toFixed(2)}\n`;
+            receiptText += `TOTAL   : Rs.${netTotal.toFixed(2)}\n`;
+            if(payMethod === 'CASH') {
+                receiptText += `CASH    : Rs.${cashGiven.toFixed(2)}\n`;
+                receiptText += `CHANGE  : Rs.${balance.toFixed(2)}\n`;
+            }
             receiptText += "------------------------------\n";
             receiptText += "Thank You! Come Again.\n";
 
-            const saleData = {
+            salesHistory.push({
                 id: Date.now(),
                 date: new Date().toLocaleString(),
-                total: currentGrandTotal,
-                cash: cashGiven,
-                balance: balance,
+                subtotal: currentGrandTotal,
+                discount: discount,
+                total: netTotal,
+                method: payMethod,
+                customer: custName,
                 items: [...cart]
-            };
+            });
 
-            salesHistory.push(saleData);
             saveData();
-
-            if (db) {
-                try { await db.from('sales').insert([saleData]); } catch(e){}
-            }
-
             let printed = await printText(receiptText);
-            alert(printed ? 'බිල Print විය!' : 'බිල්පත් ක්‍රියාවලිය සාර්ථකයි!');
+            alert(printed ? 'බිල Print විය!' : 'විකුණුම සාර්ථකව සටහන් විය!');
 
             cart = [];
             renderCart();
         }
 
+        // CREDIT LEDGER LOGIC (ණය පොත)
+        function addManualCredit() {
+            const name = document.getElementById('credit-cust-name').value.trim();
+            const phone = document.getElementById('credit-cust-phone').value.trim();
+            const amount = parseFloat(document.getElementById('credit-amount').value);
+
+            if(!name || isNaN(amount) || amount <= 0) {
+                alert('කරුණාකර නම සහ නිවැරදි ණය මුදල ඇතුළත් කරන්න!');
+                return;
+            }
+
+            addCreditRecord(name, phone, amount, "Manual Entry");
+            document.getElementById('credit-cust-name').value = '';
+            document.getElementById('credit-cust-phone').value = '';
+            document.getElementById('credit-amount').value = '';
+            alert('ණය පොතට සාර්ථකව එකතු විය!');
+        }
+
+        function addCreditRecord(name, phone, amount, note) {
+            let existing = creditLedger.find(c => c.name.toLowerCase() === name.toLowerCase());
+            if(existing) {
+                existing.amount += amount;
+                if(phone) existing.phone = phone;
+                existing.history.push({ date: new Date().toLocaleDateString(), amount: amount, note: note });
+            } else {
+                creditLedger.push({
+                    id: Date.now(),
+                    name: name,
+                    phone: phone || 'N/A',
+                    amount: amount,
+                    history: [{ date: new Date().toLocaleDateString(), amount: amount, note: note }]
+                });
+            }
+            saveData();
+        }
+
+        function renderCreditList() {
+            const list = document.getElementById('credit-list');
+            list.innerHTML = '';
+
+            if(creditLedger.length === 0) {
+                list.innerHTML = '<p class="text-xs text-gray-400">ණයගැතියන් කිසිවෙක් නැත.</p>';
+                return;
+            }
+
+            creditLedger.forEach(c => {
+                list.innerHTML += `
+                    <div class="border-b pb-2 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-gray-800">${c.name} <span class="text-xs text-gray-400 font-normal">(${c.phone})</span></p>
+                            <p class="text-xs text-red-600 font-bold">හිඟ ණය: Rs. ${c.amount.toFixed(2)}</p>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="settleCredit(${c.id})" class="px-2 py-1 bg-green-600 text-white rounded text-xs font-semibold shadow">ණය ගෙවන්න</button>
+                            <button onclick="deleteCreditCustomer(${c.id})" class="px-2 py-1 bg-red-100 text-red-600 rounded text-xs font-semibold">x</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function settleCredit(id) {
+            const cust = creditLedger.find(c => c.id === id);
+            if(!cust) return;
+
+            const paid = prompt(`${cust.name} ගෙවන මුදල ඇතුළත් කරන්න (වත්මන් ණය: Rs. ${cust.amount.toFixed(2)}):`);
+            const paidAmt = parseFloat(paid);
+
+            if(!isNaN(paidAmt) && paidAmt > 0) {
+                cust.amount -= paidAmt;
+                if(cust.amount <= 0) {
+                    cust.amount = 0;
+                    alert('සියලුම ණය ගෙවා නිම කරන ලදී!');
+                } else {
+                    alert(`ණය මුදලින් Rs. ${paidAmt.toFixed(2)} කපා හරින ලදී. ඉතිරි ණය: Rs. ${cust.amount.toFixed(2)}`);
+                }
+                saveData();
+            }
+        }
+
+        function deleteCreditCustomer(id) {
+            if(confirm('මොහුව ණය ලැයිස්තුවෙන් ඉවත් කරන්නද?')) {
+                creditLedger = creditLedger.filter(c => c.id !== id);
+                saveData();
+            }
+        }
+
+        // Reports
         function renderReports() {
             const todayStr = new Date().toLocaleDateString();
             let todayTotal = 0;
@@ -725,21 +829,22 @@
                 if(sale.date.includes(todayStr)) todayTotal += sale.total;
                 historyDiv.innerHTML += `
                     <div class="border-b pb-1 flex justify-between text-xs">
-                        <span class="text-gray-500">${sale.date}</span>
+                        <div>
+                            <span class="text-gray-500">${sale.date}</span>
+                            <span class="ml-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-1 rounded">${sale.method || 'CASH'}</span>
+                        </div>
                         <span class="font-bold text-gray-700">Rs. ${sale.total.toFixed(2)}</span>
-                    </div>
-                `;
+                    </div>`;
             });
             document.getElementById('today-sales').innerText = 'Rs. ' + todayTotal.toFixed(2);
         }
 
-        // Daily Sales Reset Functionality
         function resetTodaySales() {
             const todayStr = new Date().toLocaleDateString();
             if (confirm("අද දින විකුණුම් වාර්තා පමණක් Reset කිරීමට ඔබට විශ්වාසද?")) {
                 salesHistory = salesHistory.filter(sale => !sale.date.includes(todayStr));
                 saveData();
-                alert("අද දින විකුණුම් සාර්ථකව Reset කරන ලදී!");
+                alert("අද දින විකුණුම් Reset කරන ලදී!");
             }
         }
     </script>
