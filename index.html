@@ -301,12 +301,13 @@
 
     <!-- JavaScript Logic -->
     <script>
-        // 🚨 කරුණාකර මෙතනට ඔයාගේ Supabase URL එක සහ Anon Key එක දාන්න!
+        // 🚨 ඔයාගේ Supabase Project URL සහ Anon Key එක මෙතනට දාන්න!
         const SUPABASE_URL = "https://vpkwgxrabixokeqppduh.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwa3dneHJhYml4b2tlcXBwZHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDAyMzUsImV4cCI6MjEwMDIxNjIzNX0.QA9_iwMeVgWFlx8Np-o1pzSATDKj1JHBmf7FnuzEwBw";
         let db = null;
-        if (SUPABASE_URL !== "https://your-project-id.supabase.co") {
-            db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        if (SUPABASE_URL && SUPABASE_KEY !== "YOUR_SUPABASE_ANON_KEY_HERE") {
+            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         }
 
         let products = JSON.parse(localStorage.getItem('pos_products')) || [];
@@ -423,7 +424,7 @@
             }
         }
 
-        // --- SUPABASE & LOCAL STORAGE SAVE FUNCTION ---
+        // --- UPDATED FIXED SUPABASE SAVE FUNCTION ---
         async function saveData() {
             // LocalStorage Save
             localStorage.setItem('pos_products', JSON.stringify(products));
@@ -440,12 +441,75 @@
             // Supabase Cloud Sync
             if (db) {
                 try {
-                    if (products.length > 0) await db.from('products').upsert(products);
-                    if (salesHistory.length > 0) await db.from('sales').upsert(salesHistory);
-                    if (creditLedger.length > 0) await db.from('credits').upsert(creditLedger);
+                    // 1. Format Products
+                    const formattedProducts = products.map(p => ({
+                        id: Number(p.id),
+                        name: String(p.name || ''),
+                        cost: Number(p.cost) || 0,
+                        price: Number(p.price) || 0,
+                        stock: Number(p.stock) || 0,
+                        unit: String(p.unit || 'Nos'),
+                        code: String(p.code || '')
+                    }));
+
+                    // 2. Format Sales (Cleaned Object array to fix 400 Bad Request)
+                    const formattedSales = salesHistory.map(s => {
+                        let parsedItems = s.items;
+                        if (typeof s.items === 'string') {
+                            try { parsedItems = JSON.parse(s.items); } catch (e) { parsedItems = []; }
+                        }
+
+                        const cleanItems = Array.isArray(parsedItems) ? parsedItems.map(item => ({
+                            id: Number(item.id || 0),
+                            name: String(item.name || ''),
+                            price: Number(item.price || 0),
+                            cost: Number(item.cost || 0),
+                            qty: Number(item.qty || 0),
+                            unit: String(item.unit || 'Nos')
+                        })) : [];
+
+                        return {
+                            id: Number(s.id),
+                            date: String(s.date || ''),
+                            subtotal: Number(s.subtotal) || 0,
+                            discount: Number(s.discount) || 0,
+                            total: Number(s.total) || 0,
+                            profit: Number(s.profit) || 0,
+                            method: String(s.method || 'CASH'),
+                            customer: String(s.customer || ''),
+                            items: cleanItems
+                        };
+                    });
+
+                    // 3. Format Credits
+                    const formattedCredits = creditLedger.map(c => {
+                        let parsedHistory = c.history;
+                        if (typeof c.history === 'string') {
+                            try { parsedHistory = JSON.parse(c.history); } catch (e) { parsedHistory = []; }
+                        }
+                        return {
+                            id: Number(c.id),
+                            name: String(c.name || ''),
+                            phone: String(c.phone || ''),
+                            amount: Number(c.amount) || 0,
+                            history: parsedHistory || []
+                        };
+                    });
+
+                    if (formattedProducts.length > 0) {
+                        await db.from('products').upsert(formattedProducts);
+                    }
+                    if (formattedSales.length > 0) {
+                        const { error: sErr } = await db.from('sales').upsert(formattedSales);
+                        if (sErr) console.error("Sales Sync Error Detail:", sErr);
+                    }
+                    if (formattedCredits.length > 0) {
+                        await db.from('credits').upsert(formattedCredits);
+                    }
+
                     console.log("Supabase Cloud Sync Successful!");
                 } catch (err) {
-                    console.error("Supabase Sync Error:", err);
+                    console.error("Supabase Sync Exception:", err);
                 }
             }
         }
