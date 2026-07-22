@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="si">
 <head>
@@ -157,6 +158,15 @@
                             Restore Data <input type="file" id="restore-file" onchange="restoreBackup(event)" class="hidden" accept=".json">
                         </label>
                     </div>
+                </div>
+
+                <!-- Full System Reset -->
+                <div class="bg-red-50 border border-red-200 p-4 rounded-xl shadow space-y-2">
+                    <h3 class="font-bold text-red-700 text-sm">🚨 Danger Zone</h3>
+                    <p class="text-xs text-red-500">System එකේ ඇති සියලුම දත්ත (Stock, Sales, Password) මකා දමා මුල සිට ආරම්භ කිරීමට පහත බටන් එක ඔබන්න.</p>
+                    <button onclick="fullSystemReset()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-bold text-xs shadow">
+                        ⚠️ Full System Reset (සියලු දත්ත මකා දමන්න)
+                    </button>
                 </div>
             </div>
 
@@ -378,6 +388,15 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        // FULL SYSTEM RESET FUNCTION
+        function fullSystemReset() {
+            if (confirm("⚠️ අවධානයට: සියලුම Stock, Sales History, Settings සහ Password මකා දැමෙනු ඇත. ඔබට පද්ධතිය මුල සිට Reset කිරීමට විශ්වාසද?")) {
+                localStorage.clear();
+                alert("System එක සාර්ථකව Reset විය! පද්ධතිය නැවත Load වේ.");
+                location.reload();
+            }
         }
 
         async function saveData() {
